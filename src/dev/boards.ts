@@ -12,7 +12,7 @@ import type { Board } from './types'
 
 const commonPartsBoard: Board = {
   id: 'C01_공통요소',
-  owner: '지희',
+  owner: '김지희',
   path: '/',
   render: () => createElement(CommonPartsBoard),
 }

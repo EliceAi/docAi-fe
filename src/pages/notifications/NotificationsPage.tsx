@@ -6,7 +6,7 @@ import { Header, Icon, Mascot, Screen, type MascotFace } from '../../common/comp
 // 와이어프레임 P01: 다가오는 일정은 짚어줌(5), 분석 완료는 완료(6) 표정
 const FACE_BY_KIND: Record<NotificationKind, MascotFace> = { SCHEDULE: 5, ANALYSIS_DONE: 6 }
 
-// P01 알림 · #5 지희 · 보드: P01_알림패널
+// P01 알림 · #5 김지희 · 보드: P01_알림패널
 export function NotificationsPage() {
   const { data: notices } = useApiData(() => getNotifications(), [])
 

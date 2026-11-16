@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type Owner = '지희' | '구자건'
+export type Owner = '김지희' | '구자건'
 
 /** 와이어프레임 보드 하나 */
 export type Board = {

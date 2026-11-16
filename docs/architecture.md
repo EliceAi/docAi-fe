@@ -206,7 +206,7 @@ export function shouldMock(api: string) {
 
 ## 10. 이슈와 담당
 
-**1단계: 기반 작업 (지희, 11/17 20시 회의 전에 `dev`에 머지)**
+**1단계: 기반 작업 (김지희, 11/17 20시 회의 전에 `dev`에 머지)**
 1. [CHORE] 프로젝트 세팅
    - Vite, 라우터, 폴더 구조, CSS 옮기기
    - wireframe.html 복사, vercel.json, build.yml, .env.example, https 플러그인
@@ -221,7 +221,7 @@ export function shouldMock(api: string) {
 
 **2단계: 화면 (11/17 20시 ~ 11/18, 동시에 진행)**
 
-| 지희 (보드 24) | 구자건 (보드 36) |
+| 김지희 (보드 24) | 구자건 (보드 36) |
 |---|---|
 | S00·S01 스플래시·홈 (3) | S08 분석 결과 (4) |
 | S02 문서 선택 (3) | S09 조항 상세 (1) |
@@ -232,7 +232,7 @@ export function shouldMock(api: string) {
 | S07 분석 중·실패 (2) | S14 내 일정 (4) |
 | | S15 내 계약서 (3) ← 첫 이슈로 추천 |
 
-**3단계: 연결과 배포 (11/19 ~ 11/22, 지희)**
+**3단계: 연결과 배포 (11/19 ~ 11/22, 김지희)**
 - 백엔드 API가 머지될 때마다 [FEAT] API 연결 이슈를 만들고 `test-api`로 확인한다.
 - [CHORE] Vercel 배포와 시연 모드: mock 모드, "시연 모드" 표시, QR 주소
 
