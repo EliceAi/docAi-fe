@@ -9,7 +9,11 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "backend": "docker compose -f docker-compose.backend.yml up -d",
+    "backend:stop": "docker compose -f docker-compose.backend.yml stop",
+    "backend:restart": "docker compose -f docker-compose.backend.yml restart backend",
+    "backend:logs": "docker compose -f docker-compose.backend.yml logs -f backend"
   },
   "dependencies": {
     "react": "^19.3.1",

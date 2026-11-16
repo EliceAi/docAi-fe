@@ -4,9 +4,11 @@
 화면 기준은 `docs/wireframe.html`, 구조와 결정 이유는 `docs/architecture.md`, API 기준은 팀 Notion API 명세다.
 
 ## 실행
+- `npm run backend` → 백엔드(docAi-be)와 DB를 Docker로 띄운다. `../docAi-be`에 clone돼 있어야 한다. 끄기 `backend:stop`, 로그 `backend:logs`, 백엔드 코드를 pull한 뒤 `backend:restart`
 - `npm run dev` → http://localhost:5173 (보드 모아 보기 `/dev/boards`)
 - `npm run dev:phone` → 같은 와이파이의 휴대폰에서 `https://PC주소:5173` (카메라 테스트)
 - `npm run build` → PR 전에 반드시 통과
+- `.env.local`은 로컬에서 `VITE_API_MODE=real`(머지된 API는 실제 호출, 나머지는 mock). 배포는 mock이다.
 
 ## 폴더
 - `src/common/` 함께 쓰는 부품·틀·스타일. 공통 컴포넌트 목록은 `src/common/components/index.ts`

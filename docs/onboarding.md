@@ -9,21 +9,29 @@
 3. **Claude Code**: 설치하고 로그인
 4. **GitHub**: 메일로 온 EliceAi 조직 초대를 수락 (7일 지나면 만료돼요)
 5. **GitHub CLI**: https://cli.github.com → 설치 후 `gh auth login` (Claude가 이슈·PR을 다룰 때 써요)
+6. **Docker Desktop**: https://www.docker.com/products/docker-desktop → 설치 후 실행 (백엔드를 띄울 때 써요. Java·DB는 설치하지 않아도 돼요)
 
 ## 2. 첫 실행
 
+프론트와 백엔드를 **같은 폴더 안에 나란히** 받아요.
+
 ```bash
+mkdir elice-ai
+cd elice-ai
+git clone https://github.com/EliceAi/docAi-be.git
 git clone https://github.com/EliceAi/docAi-fe.git
 cd docAi-fe
 npm install
 ```
 
-`.env.example` 파일을 복사해서 이름을 `.env.local`로 바꿔요. 내용은 그대로 둬요.
+`.env.example` 파일을 복사해서 이름을 `.env.local`로 바꿔요. 내용은 그대로 둬요(`VITE_API_MODE=real`).
 
 ```bash
+npm run backend
 npm run dev
 ```
 
+- `npm run backend`: 백엔드와 DB를 Docker로 띄워요. **처음 한 번은 3~5분** 걸려요(이미지와 라이브러리를 받아요). 다 켜졌는지는 `npm run backend:logs`에서 `Started DocaiApplication`이 보이면 돼요. 그다음부터는 몇 초면 켜져요.
 - 브라우저에서 http://localhost:5173 → 앱
 - http://localhost:5173/dev/boards → 와이어프레임 보드 모아 보기 (진행률, 칸을 누르면 크게 보기)
 - 터미널을 닫으면 서버도 꺼져요. 작업하는 동안 켜 두세요.

@@ -8,7 +8,7 @@ description: docAi-fe에서 백엔드 API가 dev에 머지된 뒤 실제 연결�
 ## 1. 준비
 - 확인할 API 함수 이름을 정한다(예: `getAnalysis`). `src/api/`에서 함수, 주소, 타입을 찾는다.
 - 백엔드가 켜져 있는지: `curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/users/anonymous -X POST -H "Content-Type: application/json" -d "{}"`
-  - 연결이 안 되면 멈추고 백엔드 실행 방법을 알려 준다: `docAi-be`에서 `docker compose up -d` → `./gradlew bootRun`
+  - 연결이 안 되면 `npm run backend`로 띄운다. 백엔드 코드가 오래됐으면 `git -C ../docAi-be pull` 후 `npm run backend:restart`. 다 켜졌는지는 `npm run backend:logs`의 `Started DocaiApplication`
 - 백엔드 `dev`에 그 API가 있는지 `docAi-be` 코드에서 `@GetMapping`/`@PostMapping`으로 확인한다. 없으면 멈춘다.
 
 ## 2. 실제 호출
@@ -22,5 +22,5 @@ description: docAi-fe에서 백엔드 API가 dev에 머지된 뒤 실제 연결�
 
 ## 4. 연결
 - `src/api/mock-mode.ts`의 `READY_APIS`에 함수 이름을 추가한다.
-- `.env.local`을 `VITE_API_MODE=real`로 두고 화면에서 실제로 불러지는지 확인할 주소를 알려 준다.
+- `.env.local`이 `VITE_API_MODE=real`인지 확인하고 화면에서 실제로 불러지는지 확인할 주소를 알려 준다.
 - 커밋은 `commit` 스킬로: `feat: ○○ API 실제 연결`

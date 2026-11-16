@@ -98,16 +98,18 @@ docAi-fe/
 const READY_APIS = ['issueAnonymousUser'];
 
 export function shouldMock(api: string) {
-  if (import.meta.env.VITE_API_MODE === 'mock') return true;
+  if (import.meta.env.VITE_API_MODE !== 'real') return true; // 값이 없으면 mock
   return !READY_APIS.includes(api);
 }
 ```
 
-| 상황 | `.env.local` | 동작 |
+| 상황 | 설정 | 동작 |
 |---|---|---|
-| 백엔드 없이 화면만 만들 때 | `VITE_API_MODE=mock` | 모든 API가 mock. Node만 있으면 된다 |
-| 실제 연결을 확인할 때 | `VITE_API_MODE=real` | `READY_APIS`에 있는 API는 실제 호출, 나머지는 mock |
-| Vercel 배포판 | `mock` + "시연 모드" 표시 | 백엔드가 https로 배포되기 전까지는 mock |
+| **로컬 개발 (두 사람 모두)** | `.env.local`의 `VITE_API_MODE=real` + `npm run backend` | `READY_APIS`에 있는 API는 실제 백엔드로, 나머지는 mock. 백엔드 API가 머지되는 대로 둘 다 실제 응답으로 화면을 확인한다 |
+| **Vercel 배포판** | `VITE_API_MODE`를 넣지 않음(=mock) + "시연 모드" 표시 | 배포된 백엔드가 없어서 모든 API가 mock |
+
+- 로컬 백엔드는 `docker-compose.backend.yml`로 띄운다(`npm run backend`). JDK 17과 PostgreSQL을 Docker 이미지로 쓰므로 설치할 필요가 없다. `../docAi-be`에 백엔드를 clone해 두면 그 코드를 복사해 실행한다.
+- DB 포트는 밖으로 열지 않는다. PC에 다른 PostgreSQL이 있어도 부딪히지 않는다.
 
 - `request.ts`가 공통으로 처리하는 것
   - 공통 응답 `{status, code, message, data}`에서 `data`를 꺼낸다.

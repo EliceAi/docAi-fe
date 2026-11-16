@@ -8,10 +8,11 @@ PC로 열면 가운데 휴대폰 틀 안에서, 휴대폰으로 열면 전체 �
 
 1. `.env.example`을 복사해 `.env.local`을 만든다.
 2. `npm install`
-3. `npm run dev` → http://localhost:5173
+3. `npm run backend` → 백엔드·DB를 Docker로 띄운다 (`../docAi-be`에 clone, Docker Desktop 필요)
+4. `npm run dev` → http://localhost:5173
    - 보드 모아 보기: http://localhost:5173/dev/boards
    - 휴대폰 테스트: `npm run dev:phone` → 같은 와이파이에서 휴대폰으로 `https://PC주소:5173` (카메라는 https에서만 켜진다)
-4. 백엔드와 연결할 때는 `docAi-be`를 `localhost:8080`에 띄우고 `.env.local`의 `VITE_API_MODE=real`로 바꾼다.
+5. 로컬은 `VITE_API_MODE=real`이 기본이다. 백엔드에 머지되고 확인된 API(`src/api/mock-mode.ts`의 `READY_APIS`)만 실제로 부르고 나머지는 mock으로 답한다. 배포(Vercel)는 백엔드가 없어 mock이다.
 
 ## 문서
 
