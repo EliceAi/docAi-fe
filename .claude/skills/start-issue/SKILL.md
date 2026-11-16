@@ -40,7 +40,7 @@ description: docAi-fe 이슈를 시작하거나 이어서 할 때 사용한다. 
    - 와이어프레임 함수는 같은 이름의 공통 부품으로: `header` → `Header`, `button` → `Button`, `icon` → `Icon`, `mascot` → `Mascot`, `screen` → `Screen`
    - `data-go="보드 이름"` → 그 보드의 주소로 이동(`src/router.tsx`에서 주소 확인). `data-act` → 화면 안 동작(지금은 할 일만 주석 없이 함수 이름으로)
    - 문구는 한 글자도 바꾸지 않는다. 예시 데이터는 mock으로 옮긴다.
-3. 데이터는 `src/api/` 함수로 받는다. 이 보드 상태에 맞는 mock이 없으면 `src/api/mocks/<기능>.ts`에 추가한다.
+3. 데이터는 `src/api/` 함수로 받는다. 이 보드 상태에 맞는 mock이 없으면 `src/api/mocks/<기능>.ts`에 추가한다. 배포는 mock으로만 돌아가므로, 보드의 예시 문구·숫자는 mock에 그대로 옮겨 배포 화면에서도 와이어프레임과 같게 보이게 한다.
 4. 그 폴더의 `boards.tsx`에서 보드에 `render`를 연결한다(그 상태의 mock 데이터로 그리기).
 5. `npm run build`가 통과하는지 확인한다.
 6. 이슈 체크박스를 체크한다: 본문을 받아 해당 줄의 `- [ ]`를 `- [x]`로 바꾸고 `gh issue edit N --body-file`.

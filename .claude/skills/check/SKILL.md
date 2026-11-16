@@ -25,6 +25,7 @@ description: docAi-fe에서 PR 전에 작업을 점검할 때 사용한다. "확
 - `package.json`의 의존성 추가
 - 화면 주소나 로그에 이름·전화번호·주소 같은 개인정보
 - `.env.local`, 토큰·키처럼 보이는 문자열
+- mock이 빠진 API 함수(`shouldMock` 분기가 없는 함수)나, 이번에 만든 보드 중 mock 데이터 없이는 그려지지 않는 보드. 배포는 mock으로만 돌아간다.
 
 ## 5. 수정 범위
 - `git diff --name-only dev...HEAD`
