@@ -1319,6 +1319,9 @@ renderIntro();
 renderLanes();
 applyView();
 document.fonts.ready.then(() => { drawWires(); document.getElementById('goIntro').click(); });
+// 주소 끝에 #보드이름을 붙여 열면 그 보드 미리보기를 바로 연다 (docAi-fe /dev/boards의 "와이어프레임 원본" 버튼)
+const linkedBoard = decodeURIComponent(location.hash.slice(1));
+if (BOARDS[linkedBoard]) document.fonts.ready.then(() => openViewer(linkedBoard));
 </script>
 </body>
 </html>
