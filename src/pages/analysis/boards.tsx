@@ -7,7 +7,7 @@ export const analysisBoards: Board[] = [
   { id: 'S07_분석중_진행', owner: '김지희', path: '/analyses/1/progress' },
   { id: 'S07_분석실패', owner: '김지희', path: '/analyses/1/progress' },
 
-  // S08 분석 결과 · S09 조항 상세 · #16 #17 구자건
+  // S08 분석 결과 · S09 조항 상세 · 구자건
   { id: 'S08_분석결과_정상', owner: '구자건', path: '/analyses/1' },
   { id: 'S08_분석결과_일부확인필요', owner: '구자건', path: '/analyses/1' },
   { id: 'S08_분석결과_임대차', owner: '구자건', path: '/analyses/1' },

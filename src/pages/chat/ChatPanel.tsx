@@ -9,7 +9,7 @@ type ChatPanelProps = {
   onClose: () => void
 }
 
-// S10 AI 챗봇 패널 · #22 구자건 · 보드 13개는 boards.tsx 참고
+// S10 AI 챗봇 패널 · 구자건 · 보드 13개는 boards.tsx 참고
 // 와이어프레임 chatPanel()을 옮길 자리. 지금은 제목과 닫기만 있다.
 export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   return (
@@ -23,7 +23,7 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
       <div className="msgs">
         <div className="air">
           <Mascot face={8} size={30} />
-          <div className="aib">아직 만들지 않은 패널이에요. #22 이슈에서 만들어요. (연 화면: {opening.from ?? '알 수 없음'})</div>
+          <div className="aib">아직 만들지 않은 패널이에요. 담당 이슈에서 만들어요. (연 화면: {opening.from ?? '알 수 없음'})</div>
         </div>
       </div>
     </Sheet>
