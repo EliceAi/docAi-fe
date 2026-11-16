@@ -97,7 +97,7 @@ docAi-fe/
 // src/api/mock-mode.ts — 백엔드 dev에 머지되고 test-api로 확인한 API만 추가한다
 const READY_APIS = ['issueAnonymousUser'];
 
-export function useMock(api: string) {
+export function shouldMock(api: string) {
   if (import.meta.env.VITE_API_MODE === 'mock') return true;
   return !READY_APIS.includes(api);
 }

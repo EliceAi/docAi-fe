@@ -14,6 +14,7 @@ description: docAi-fe 이슈를 시작하거나 이어서 할 때 사용한다. 
 - 지금 바뀐 파일이 있으면(`git status`) 멈추고 어떻게 할지 묻는다.
 - `git checkout dev && git pull`
 - 머지가 끝난 로컬 브랜치를 정리한다: `git branch --merged dev`에서 `dev`·`main`을 뺀 것을 `git branch -d`.
+- 사용자가 여러 이슈를 지금 브랜치에서 이어서 하자고 했으면 브랜치를 바꾸지 않는다(위 두 줄도 건너뛴다).
 - 이슈에 적힌 브랜치가 원격에 있으면 `git checkout <브랜치> && git pull`, 없으면 `git checkout -b <브랜치>`.
 
 ## 3. 계획 보여 주기 (승인 전에는 코드를 쓰지 않는다)

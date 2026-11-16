@@ -1,22 +1,21 @@
 import { Link } from 'react-router-dom'
+import { getNotifications, type NotificationKind } from '../../api/notifications'
+import { useApiData } from '../../api/useApiData'
 import { Header, Icon, Mascot, Screen, type MascotFace } from '../../common/components'
 
-type Notice = { face: MascotFace; title: string; text: string; to: string }
-
-// #6에서 GET /api/notifications 응답으로 바꾼다
-const SAMPLE_NOTICES: Notice[] = [
-  { face: 5, title: 'D-8 · 입주·전입신고가 다가와요', text: '역삼동 원룸 월세 계약서', to: '/schedules/1' },
-  { face: 6, title: '분석이 끝났어요', text: '카페 알바 근로계약서 · 확인 필요 2', to: '/analyses/1' },
-]
+// 와이어프레임 P01: 다가오는 일정은 짚어줌(5), 분석 완료는 완료(6) 표정
+const FACE_BY_KIND: Record<NotificationKind, MascotFace> = { SCHEDULE: 5, ANALYSIS_DONE: 6 }
 
 // P01 알림 · #5 지희 · 보드: P01_알림패널
 export function NotificationsPage() {
+  const { data: notices } = useApiData(() => getNotifications(), [])
+
   return (
     <Screen header={<Header title="알림" back="/" chatFrom="S01" />}>
       <div className="card" style={{ padding: '4px 16px' }}>
-        {SAMPLE_NOTICES.map(notice => (
-          <Link key={notice.title} className="li" to={notice.to}>
-            <Mascot face={notice.face} size={36} />
+        {notices?.map(notice => (
+          <Link key={notice.notificationId} className="li" to={notice.to}>
+            <Mascot face={FACE_BY_KIND[notice.kind]} size={36} />
             <span style={{ flex: 1 }}>
               <b>{notice.title}</b><br />
               <span className="mut">{notice.text}</span>
