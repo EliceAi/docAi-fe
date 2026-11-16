@@ -12,7 +12,8 @@ describe('shouldMock', () => {
     expect(shouldMock('getAnalysis', 'real')).toBe(true)
   })
 
-  it('모드를 정하지 않으면 mock으로 본다', () => {
-    expect(shouldMock('issueAnonymousUser', undefined)).toBe(true)
+  // undefined를 넘기면 기본값(내 PC의 .env.local)이 쓰여서 PC마다 결과가 달라진다. 빈 값으로 확인한다.
+  it('모드 값이 비어 있으면(배포처럼) mock으로 본다', () => {
+    expect(shouldMock('issueAnonymousUser', '')).toBe(true)
   })
 })
