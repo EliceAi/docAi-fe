@@ -16,6 +16,6 @@
 .boards-legend i.todo{background:#F1F3F6;border:1px dashed #C5CAD1}
 .boards-preview{position:sticky;top:24px;width:430px;flex:none;background:#fff;border-radius:18px;padding:16px 20px}
 .boards-preview h3{margin:0;font-size:16px}
-.boards-phone{width:390px;height:min(844px,calc(100vh - 220px));margin:12px 0;border-radius:28px;overflow:auto;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 12px 32px rgba(0,0,0,.12);position:relative}
+.boards-phone{width:390px;height:min(844px,calc(100vh - 220px));margin:12px 0;border-radius:28px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 12px 32px rgba(0,0,0,.12);position:relative}
 .boards-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#8A9099;background:#F5F6F8}
 .boards-actions{display:flex;gap:8px}

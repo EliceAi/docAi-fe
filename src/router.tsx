@@ -1,4 +1,4 @@
-import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router-dom'
 import { AppFrame } from './common/layout/AppFrame'
 import { AppPanelsProvider } from './common/layout/AppPanels'
 import { BoardsPage } from './dev/BoardsPage'
@@ -39,6 +39,8 @@ const appRoutes: RouteObject[] = [
   { path: '/schedules/:scheduleId', element: <ScheduleDetailPage /> }, // S14 상세
   { path: '/contracts', element: <MyContractsPage /> }, // S15
   { path: '/contracts/:contractId', element: <MyContractDetailPage /> }, // S15 상세
+  // 와이어프레임에 없는 주소는 오류 화면 대신 홈으로 보낸다
+  { path: '*', element: <Navigate to="/" replace /> },
 ]
 
 const SHOW_BOARDS = import.meta.env.VITE_SHOW_BOARDS === 'true'
