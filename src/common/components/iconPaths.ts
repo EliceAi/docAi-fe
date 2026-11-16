@@ -1,0 +1,31 @@
+// docs/wireframe.html의 ICON_PATHS를 그대로 옮겼다.
+export const ICON_PATHS = {
+  back: "<path d=\"M15 5l-7 7 7 7\"/>",
+  chev: "<path d=\"M9 5l7 7-7 7\"/>",
+  x: "<path d=\"M6 6l12 12M18 6L6 18\"/>",
+  bell: "<path d=\"M6 16V11a6 6 0 0 1 12 0v5l2 2H4z\"/><path d=\"M10 20a2 2 0 0 0 4 0\"/>",
+  home: "<path d=\"M4 11l8-7 8 7v9H4z\"/><path d=\"M10 20v-6h4v6\"/>",
+  filePlus: "<path d=\"M14 3H6v18h12V7z\"/><path d=\"M14 3v4h4\"/><path d=\"M12 11v6M9 14h6\"/>",
+  files: "<path d=\"M8 3h8l4 4v12H8z\"/><path d=\"M4 7v14h12\"/>",
+  cal: "<rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"/><path d=\"M4 10h16M9 3v4M15 3v4\"/>",
+  camera: "<path d=\"M4 8h3l2-3h6l2 3h3v11H4z\"/><circle cx=\"12\" cy=\"13\" r=\"3.5\"/>",
+  upload: "<path d=\"M12 16V5M7 10l5-5 5 5\"/><path d=\"M5 19h14\"/>",
+  warn: "<path d=\"M12 4l9 16H3z\"/><path d=\"M12 10v4M12 17v.5\"/>",
+  check: "<path d=\"M5 12l5 5 9-10\"/>",
+  search: "<circle cx=\"11\" cy=\"11\" r=\"6\"/><path d=\"M20 20l-4.5-4.5\"/>",
+  lock: "<rect x=\"5\" y=\"11\" width=\"14\" height=\"9\" rx=\"2\"/><path d=\"M8 11V8a4 4 0 0 1 8 0v3\"/>",
+  list: "<path d=\"M9 6h11M9 12h11M9 18h11M4 6h.5M4 12h.5M4 18h.5\"/>",
+  undo: "<path d=\"M9 14L4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>",
+  move: "<path d=\"M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3\"/>",
+  send: "<path d=\"M4 12l16-8-6 16-2-7z\"/>",
+  edit: "<path d=\"M4 20h4L19 9l-4-4L4 16z\"/>",
+  doc: "<path d=\"M14 3H6v18h12V7z\"/><path d=\"M14 3v4h4M9 12h6M9 16h6\"/>",
+  swap: "<path d=\"M7 7h13l-4-4M17 17H4l4 4\"/>",
+  copy: "<rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\"/><path d=\"M16 8V4H4v12h4\"/>",
+  info: "<circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M12 11v5M12 8v.5\"/>",
+  refresh: "<path d=\"M20 11a8 8 0 1 0-2 6\"/><path d=\"M20 5v6h-6\"/>",
+  plus: "<path d=\"M12 5v14M5 12h14\"/>",
+  image: "<rect x=\"4\" y=\"5\" width=\"16\" height=\"14\" rx=\"2\"/><path d=\"M4 16l5-5 4 4 3-3 4 4\"/>",
+} as const
+
+export type IconName = keyof typeof ICON_PATHS

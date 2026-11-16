@@ -8,7 +8,12 @@
     "dev:phone": "vite --mode phone",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "backend": "docker compose -f docker-compose.backend.yml up -d",
+    "backend:stop": "docker compose -f docker-compose.backend.yml stop",
+    "backend:restart": "docker compose -f docker-compose.backend.yml restart backend",
+    "backend:logs": "docker compose -f docker-compose.backend.yml logs -f backend"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -23,6 +28,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }

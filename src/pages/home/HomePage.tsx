@@ -1,13 +1,6 @@
-/// S01 홈. 지금은 세팅 확인용 화면이고, 와이어프레임 보드는 #7에서 옮긴다.
+import { NotBuiltScreen } from '../../common/layout/NotBuiltScreen'
+
+// S01 홈 · #7 김지희 · 보드: S01_홈_기본 · S01_홈_첫사용
 export function HomePage() {
-  return (
-    <div className="scr">
-      <div className="bd">
-        <div className="card">
-          <p className="h2">문서AI</p>
-          <p className="mut">프로젝트 세팅 완료. 화면은 이슈별로 옮겨집니다.</p>
-        </div>
-      </div>
-    </div>
-  )
+  return <NotBuiltScreen title="홈" issue={7} />
 }
