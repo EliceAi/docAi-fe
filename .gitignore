@@ -39,3 +39,6 @@ Thumbs.db
 
 ### AI 도구 작업 기록 (oh-my-claudecode) ###
 .omc/
+
+### 개인 계획 파일 (code-planner, 커밋하지 않음) ###
+docs/code-plans/

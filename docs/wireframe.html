@@ -1,0 +1,1324 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>문서AI 최종 와이어프레임</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{--ink:#1F2328;--muted:#5F6672;--line:#E3E5E8;--accent:#2458D6;--accent-soft:#EEF3FF;--bg:#F5F6F8}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink)}
+a{color:inherit;text-decoration:none;cursor:pointer}
+b{font-weight:700}
+
+/* ---------- 캔버스 ---------- */
+#stage{position:fixed;inset:0;background:#E9EBEE radial-gradient(#C9CDD3 1px,transparent 1px) 0 0/24px 24px;cursor:grab;touch-action:none;user-select:none}
+#stage.dragging{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;padding:100px 120px 400px}
+#wires{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.lane{margin-top:180px}
+.lane-h{display:flex;align-items:baseline;gap:20px;margin-bottom:40px;padding:18px 28px;background:#fff;border-radius:18px;box-shadow:0 0 0 1px rgba(0,0,0,.06);width:max-content}
+.lane-h .no{font-size:44px;font-weight:700;color:var(--accent)}
+.lane-h .tt{font-size:36px;font-weight:700;color:#2B3138}
+.lane-h .dd{font-size:20px;color:var(--muted)}
+.cols{display:flex;gap:190px;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:90px;width:390px}
+.blabel{font-size:16px;font-weight:700;margin-bottom:12px;color:#2B3138}
+.board{width:390px;border-radius:28px;overflow:hidden;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 12px 32px rgba(0,0,0,.12);position:relative;cursor:pointer}
+.board.fx{height:844px}
+.board:hover{box-shadow:0 0 0 3px var(--accent),0 12px 32px rgba(0,0,0,.16)}
+.board.flash{box-shadow:0 0 0 8px #FFC94D,0 12px 32px rgba(0,0,0,.16)}
+.memo{margin-top:16px;background:#FFF8E1;border:1px solid #F0DE9E;border-radius:14px;padding:12px 14px;font-size:12.5px;line-height:1.6;color:#3A3F46;display:flex;flex-direction:column;gap:3px}
+.memo div{display:flex;gap:8px}
+.memo div>i{font-style:normal;flex:none;width:74px;color:#8A6D00;font-weight:700}
+.memo .deal{color:#8A4B00}
+.memo .poc{color:#B42318}
+
+/* 안내 영역 */
+#intro{display:grid;grid-template-columns:760px 760px 760px;gap:40px;align-items:start}
+.panel{background:#fff;border-radius:22px;padding:28px 30px;box-shadow:0 0 0 1px rgba(0,0,0,.06);font-size:16px;line-height:1.7}
+.panel h2{margin:0 0 14px;font-size:24px}
+.panel h1{margin:0 0 6px;font-size:40px}
+.panel ul{margin:0;padding-left:20px}
+.panel li{margin:4px 0}
+.fchip{display:inline-flex;align-items:center;height:30px;padding:0 10px;margin:3px 4px 3px 0;border-radius:8px;background:#F1F3F6;font-size:13px;cursor:pointer}
+.fchip:hover{background:var(--accent-soft);color:#1A43A8}
+.play{display:flex;align-items:center;gap:12px;padding:12px 14px;margin:8px 0;border-radius:12px;background:var(--accent-soft);color:#1A43A8;font-weight:700;cursor:pointer}
+.play small{font-weight:400;color:#3A3F46}
+.crit{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #EEF0F3}
+.crit .n{width:26px;height:26px;border-radius:50%;background:#E7F6EE;color:#13734A;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.leg{display:flex;align-items:center;gap:10px;margin:6px 0}
+.leg i{display:inline-block;width:40px;border-top:3px solid #2458D6}
+.leg i.e{border-top:3px dashed #8A9099}
+.leg i.c{border-top:3px dashed #7F77DD}
+
+/* 툴바 */
+.toolbar{position:fixed;right:16px;bottom:16px;display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #D3D9E0;border-radius:10px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:20}
+.toolbar button{min-width:36px;height:34px;border:0;border-radius:7px;background:transparent;font:inherit;font-size:14px;cursor:pointer;padding:0 10px}
+.toolbar button:hover{background:#EEF1F4}
+.toolbar .zoom{min-width:52px;text-align:center;font-size:13px;color:var(--muted)}
+.hint{position:fixed;left:16px;bottom:16px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.9);border-radius:8px;padding:7px 11px;z-index:20}
+
+/* ---------- 폰 화면 공통 ---------- */
+.scr{width:390px;min-height:844px;background:var(--bg);display:flex;flex-direction:column;position:relative;font-size:14px;line-height:1.5}
+.board.fx .scr,.ov .scr{height:844px;overflow:hidden}
+.hd-w{position:sticky;top:0;z-index:4;background:#fff}
+.sb{height:30px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:13px;font-weight:700}
+.hd{height:54px;display:flex;align-items:center;gap:4px;padding:0 12px 0 6px;border-bottom:1px solid #EEF0F3}
+.hb,.hi{width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex:none}
+.hi{color:var(--muted)}
+.logo{font-size:19px;font-weight:700;padding-left:10px}
+.ht{flex:1;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-chip{display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 12px 0 6px;border-radius:999px;background:var(--accent-soft);color:#1A43A8;font-size:13px;font-weight:700;white-space:nowrap;flex:none}
+.bd{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px}
+.ft{position:sticky;bottom:0;z-index:4;padding:12px 16px 18px;background:#fff;border-top:1px solid #EEF0F3;display:flex;gap:8px}
+.tb{position:sticky;bottom:0;z-index:4;height:66px;display:flex;background:#fff;border-top:1px solid var(--line)}
+.tb a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:#8A9099}
+.tb a.on{color:var(--accent);font-weight:700}
+.card{background:#fff;border:1px solid #E8EAED;border-radius:16px;padding:16px;display:block}
+.h2{font-size:16px;font-weight:700;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.more{margin-left:auto;font-size:13px;color:var(--muted);font-weight:400}
+.btn{min-height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:15px;font-weight:700;flex:1;text-align:center;padding:0 10px}
+.btn.p{background:var(--accent);color:#fff}
+.btn.l{background:#fff;border:1px solid #D5D9DE}
+.btn.g{background:#F1F3F6}
+.btn.off{background:#E9EBEE;color:#A0A6AE}
+.stp a{cursor:pointer}
+.btn.s{min-height:38px;font-size:13px;flex:none;padding:0 14px;border-radius:10px}
+.tag{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:700;white-space:nowrap;vertical-align:middle}
+.t-red{background:#FDECEA;color:#B42318}.t-amb{background:#FFF3E0;color:#8A4B00}.t-grn{background:#E7F6EE;color:#13734A}
+.t-blu{background:var(--accent-soft);color:#1A43A8}.t-gry{background:#F1F3F6;color:var(--muted)}.t-ink{background:#1F2328;color:#fff}
+.mut{color:var(--muted);font-size:13px}
+.row{display:flex;align-items:center;gap:10px}
+.li{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #EEF0F3}
+.li:last-child{border-bottom:0}
+.chip{display:inline-flex;align-items:center;height:34px;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:13px;white-space:nowrap}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.say{display:flex;gap:10px;align-items:flex-start}
+.say .bub{background:#fff;border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:10px 12px;font-size:14px}
+.note{display:flex;gap:6px;align-items:flex-start;font-size:12.5px;color:var(--muted)}
+.warnb{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:#FFF3E0;color:#6B3A00;font-size:13px}
+.okb{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:14px;background:#E7F6EE;color:#13734A;font-size:13px;font-weight:700}
+.infob{display:flex;gap:8px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--accent-soft);color:#1A43A8;font-size:13px}
+.seg{display:flex;background:#E9EBEE;border-radius:10px;padding:3px}
+.seg a{flex:1;height:34px;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:8px;font-size:13px;color:var(--muted)}
+.seg a.on{background:#fff;color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.srch{display:flex;align-items:center;gap:8px;height:46px;padding:0 14px;border-radius:12px;background:#fff;border:1px solid var(--line);color:#8A9099}
+
+/* 단계 표시 */
+.stp{display:flex;align-items:center;gap:6px;padding:10px 16px 12px;font-size:11px;color:#8A9099}
+.stp .sd{width:22px;height:22px;border-radius:50%;background:#E3E5E8;color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.stp .sd.done,.stp .sd.cur{background:var(--accent);color:#fff}
+.stp .sd.cur{box-shadow:0 0 0 4px #DCE6FB}
+.stp i{flex:1;height:2px;background:#E3E5E8}
+.stp .sl.cur{color:var(--accent);font-weight:700}
+
+/* 홈 */
+.hero{display:flex;gap:10px}
+.hbtn{flex:1;background:var(--accent);color:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:4px}
+.hbtn.w{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.hbtn small{font-size:12px;opacity:.85}
+.ev{display:flex;align-items:center;gap:12px;padding:9px 0}
+.dday{width:50px;height:32px;border-radius:8px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.ev>span:nth-child(2){flex:1;display:flex;flex-direction:column}
+.ev small{font-size:12px;color:var(--muted)}
+.lane2{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.lane2>b{width:22px;font-size:13px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:22px 16px}
+
+/* 문서 선택 */
+.pop{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pop a{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.sec-h{font-size:13px;font-weight:700;color:var(--muted);margin:6px 0 0}
+
+/* 촬영 */
+.opt{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 16px}
+.opt .oi{width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.cam{width:390px;height:844px;background:#111;color:#fff;display:flex;flex-direction:column}
+.cam .frame{flex:1;margin:20px 28px;border:2px solid rgba(255,255,255,.85);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#ddd;text-align:center;position:relative}
+.shutter{width:72px;height:72px;border-radius:50%;border:5px solid #fff;background:#fff;box-shadow:inset 0 0 0 4px #111}
+
+/* 페이지·가리기 */
+.pages{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pth{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.pimg{height:150px;border-radius:8px;background:#F7F8FA;border:1px solid #EEF0F3;padding:12px 10px;display:flex;flex-direction:column;gap:7px}
+.pimg.blur{filter:blur(1.2px)}
+.ln{height:6px;border-radius:3px;background:#D5D9DE}
+.ln.mk{background:#1F2328;height:8px}
+.pth .pa{display:flex;gap:6px}
+.pth .pa a{flex:1;height:32px;border-radius:8px;background:#F1F3F6;display:flex;align-items:center;justify-content:center;font-size:12px}
+.addp{border:1.5px dashed #C5CAD1;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted);font-size:13px;min-height:200px}
+.paper{background:#fff;border:1px solid #DDE1E6;border-radius:10px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.paper .pt{font-size:14px;font-weight:700;text-align:center;margin-bottom:8px;display:flex;justify-content:center;gap:6px;align-items:center}
+.prow{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid #F0F1F3;font-size:13px}
+.prow:last-child{border-bottom:0}
+.prow>span:first-child{width:92px;color:var(--muted);flex:none}
+.mkb{display:inline-block;height:16px;border-radius:3px;background:#1F2328}
+.sel{border:2px dashed var(--accent);padding:2px 5px;border-radius:4px;position:relative;background:rgba(36,88,214,.06)}
+.sel:before,.sel:after{content:'';position:absolute;width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--accent)}
+.sel:before{left:-6px;top:-6px}.sel:after{right:-6px;bottom:-6px}
+.tools{display:flex;gap:8px}
+.tool{flex:1;height:46px;border-radius:12px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:700}
+.tool.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* 분석 */
+.pst{display:flex;align-items:center;gap:12px;padding:10px 0;font-size:15px}
+.pst .pd{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#E3E5E8;color:#fff}
+.pst.done .pd{background:var(--accent)}
+.pst.doing .pd{background:#fff;border:3px solid var(--accent);border-right-color:#DCE6FB}
+.pst.todo{color:#8A9099}
+
+/* 결과 */
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cv{background:var(--bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.cv small{font-size:12px;color:var(--muted)}
+.cv b{font-size:15px}
+.cv.miss b,.cv.unk b{font-size:13px;color:#8A4B00}
+.iss{display:flex;flex-direction:column;gap:8px}
+.iss .it{font-size:16px;font-weight:700}
+.cmp{display:flex;align-items:center;gap:8px}
+.cmp>div{flex:1;background:var(--bg);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+.cmp small{font-size:11px;color:var(--muted)}
+.law{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
+.more2{align-self:flex-start;display:inline-flex;align-items:center;gap:2px;height:32px;padding:0 10px;border-radius:8px;background:#F1F3F6;font-size:12.5px;font-weight:700}
+.cnt{display:flex;gap:6px;flex-wrap:wrap}
+.quote{padding:10px 12px;border-radius:10px;background:var(--bg);font-size:13px;display:flex;gap:8px;justify-content:space-between;align-items:center}
+.disc{font-size:12px;color:var(--muted);padding:4px 2px}
+
+/* 조항 */
+.orig{background:#FFFBEA;border:1px solid #F3E2A9;border-radius:12px;padding:12px 14px;font-size:14px}
+.orig mark{background:#FFE58A;padding:0 2px}
+.minipage{width:70px;height:92px;border:1px solid #DDE1E6;border-radius:6px;background:#fff;padding:8px 6px;display:flex;flex-direction:column;gap:5px;flex:none}
+.minipage .ln{height:4px}
+.minipage .hl{background:#FFC94D}
+.src{color:#2458D6;font-weight:700;text-decoration:underline;margin-left:auto;cursor:pointer;white-space:nowrap}
+.srcbox{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted)}
+.srcbox>span{flex:1}
+.warnline{margin-top:8px;font-size:12px;color:#8A4B00;background:#FFF8E1;border-radius:8px;padding:6px 8px;display:flex;gap:4px;align-items:flex-start}
+.fold{position:absolute;left:0;right:0;border-top:2px dashed #E5484D;z-index:9;pointer-events:none}
+.fold span{position:absolute;right:8px;top:-22px;background:#E5484D;color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px}
+.lawbox{background:var(--bg);border-radius:12px;padding:12px 14px;font-size:13px}
+
+/* 비교 */
+.vcard{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+.vbadge{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.chg{background:#fff;border:1px solid #E8EAED;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.chg .bf,.chg .af{border-radius:10px;padding:8px 12px;display:flex;flex-direction:column}
+.chg .bf{background:#F5F6F8;color:var(--muted)}
+.chg .af{background:var(--accent-soft);color:#12306F}
+.chg small{font-size:11px}
+
+/* 일정 */
+.srow{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid #EEF0F3}
+.cb{width:22px;height:22px;border-radius:6px;border:2px solid #C5CAD1;display:flex;align-items:center;justify-content:center;flex:none;margin-top:2px}
+.cb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.dt2{font-size:15px;font-weight:700}
+.crow{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid #EEF0F3}
+.crow .ba{display:flex;align-items:center;gap:8px;font-size:14px}
+.crow s{color:#8A9099}
+.er{display:flex;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid #EEF0F3}
+.ed{width:44px;flex:none;text-align:center;display:flex;flex-direction:column}
+.ed b{font-size:18px}
+.ed small{font-size:11px;color:var(--muted)}
+.mh{font-size:13px;font-weight:700;color:var(--muted);margin-top:8px}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:13px}
+.calg span{height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:10px}
+.calg .w{height:26px;font-size:11px;color:#8A9099}
+.calg .today{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent);font-weight:700}
+.calg .pick{background:var(--accent);color:#fff;font-weight:700}
+.calg i{width:5px;height:5px;border-radius:50%;background:#E5484D}
+.calg .pick i{background:#fff}
+.toast{position:absolute;left:16px;right:16px;bottom:84px;background:#1F2328;color:#fff;border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;font-size:13px;z-index:6}
+
+/* 내 계약서 */
+.dc{display:flex;gap:12px;align-items:center}
+.th{width:46px;height:58px;border-radius:8px;background:#EEF0F3;border:1px dashed #C5CAD1;display:flex;align-items:center;justify-content:center;color:var(--muted);flex:none}
+
+/* 겹침(패널·확인창) */
+.ov{position:relative;height:844px;overflow:hidden}
+.dim{position:absolute;inset:0;background:rgba(17,20,24,.48);z-index:7}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:88%;background:#F7F8FA;border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;z-index:8}
+.sheet.s60{height:62%}
+.sheet.top2{z-index:8}
+.dlg{position:absolute;left:20px;right:20px;top:50%;transform:translateY(-50%);background:#fff;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:10px;z-index:10}
+.dim.d2{z-index:9}
+.dt{font-size:17px;font-weight:700;text-align:center}
+.dd{font-size:14px;color:var(--muted);text-align:center}
+.db{display:flex;gap:8px;margin-top:6px}
+
+/* 챗봇 패널 */
+.grab{width:40px;height:4px;border-radius:2px;background:#D5D9DE;margin:8px auto 2px}
+.sh-t{display:flex;align-items:center;gap:8px;padding:4px 14px 8px 16px;font-size:16px}
+.sh-t .x{margin-left:auto;color:var(--muted);width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.cl{margin:0 16px;display:flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:10px;background:#EDEFF2;color:var(--muted);font-size:12.5px}
+.cl.on{background:var(--accent-soft);color:#1A43A8}
+.cl .sw{margin-left:auto;font-weight:700;text-decoration:underline}
+.ctx{margin:6px 16px 0;font-size:12px;color:#7A818B;display:flex;gap:4px;align-items:flex-start}
+.banner{margin:8px 16px 0;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#E7F6EE;color:#13734A;font-size:13px;font-weight:700}
+.banner a{margin-left:auto;height:30px;padding:0 10px;border-radius:8px;background:#13734A;color:#fff;display:flex;align-items:center}
+.msgs{flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.me{align-self:flex-end;max-width:78%;background:var(--accent);color:#fff;padding:10px 13px;border-radius:16px 16px 4px 16px;font-size:14px}
+.air{display:flex;gap:8px;align-items:flex-start}
+.aib{background:#fff;border:1px solid #E8EAED;border-radius:4px 16px 16px 16px;padding:11px 13px;font-size:14px;max-width:88%}
+.aib.fail{background:#FFF6F5;border-color:#F5C9C4}
+.refs{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11px;color:#8A9099}
+.refs em{font-style:normal;background:#F1F3F6;color:#3A3F46;border-radius:6px;padding:1px 7px}
+.acts{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.act{display:flex;justify-content:space-between;align-items:center;min-height:38px;padding:0 12px;border-radius:10px;background:var(--accent-soft);color:#1A43A8;font-size:13px;font-weight:700}
+.qcs{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 8px}
+.qc{height:32px;display:inline-flex;align-items:center;padding:0 12px;border-radius:999px;border:1px solid #C9D6F5;background:#fff;color:#1A43A8;font-size:12.5px;white-space:nowrap}
+.inp{margin:0 16px 16px;height:48px;border-radius:24px;background:#fff;border:1px solid #D5D9DE;display:flex;align-items:center;padding:0 6px 0 16px;color:#8A9099;font-size:14px;flex:none}
+.inp span{flex:1}.inp .typed{color:var(--ink)}
+.inp b{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center}
+
+/* 스플래시 */
+.spl{width:390px;height:844px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.spl b{font-size:30px}
+.dots{display:flex;gap:6px;margin-top:18px}
+.dots i{width:8px;height:8px;border-radius:50%;background:#DCE6FB}
+.dots i:first-child{background:var(--accent)}
+
+/* ---------- 미리보기(클릭 시연) ---------- */
+#viewer{position:fixed;inset:0;z-index:50;display:none;background:rgba(20,24,30,.76);align-items:center;justify-content:center;gap:28px;padding:20px}
+#viewer.on{display:flex}
+.vhold{position:relative;overflow:hidden;border-radius:36px;box-shadow:0 0 0 9px #0E1013,0 20px 60px rgba(0,0,0,.5);flex:none;background:#fff}
+#vphone{width:390px;height:844px;overflow-y:auto;overflow-x:hidden;transform-origin:0 0;background:#fff}
+#vphone .board{box-shadow:none;border-radius:0;cursor:default}
+.vside{width:360px;max-height:92vh;overflow:auto;background:#fff;border-radius:18px;padding:18px 20px;font-size:13.5px;line-height:1.6}
+.vside h3{margin:0 0 4px;font-size:17px}
+.vside .vnav{display:flex;gap:6px;margin:12px 0}
+.vside button{flex:1;height:38px;border:1px solid #D5D9DE;border-radius:10px;background:#fff;font:inherit;font-size:13px;cursor:pointer}
+.vside button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+.vsteps{margin:8px 0;padding:0;list-style:none}
+.vsteps li{padding:6px 10px;border-radius:8px;cursor:pointer;font-size:12.5px}
+.vsteps li.on{background:var(--accent-soft);color:#1A43A8;font-weight:700}
+.vmsg{min-height:20px;font-size:12.5px;color:#1A43A8}
+.vtoast{position:absolute;left:14px;right:14px;bottom:24px;background:#1F2328;color:#fff;border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.5;z-index:60}
+</style>
+</head>
+<body>
+
+<!-- 캐릭터(말풍선 종이) 표정 9종: 화면 상태를 보여주는 장식이며 기능을 뜻하지 않는다 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<path id="msh" d="M26 10 H52 L68 26 V44 a14 14 0 0 1 -14 14 H38 L26 70 V58 a14 14 0 0 1 -14 -14 V24 a14 14 0 0 1 14 -14Z"/>
+<g id="mb"><use href="#msh" fill="#fff" stroke="#2458D6" stroke-width="5" stroke-linejoin="round"/><path d="M52 10 V22 a4 4 0 0 0 4 4 H68" fill="#DCE6FB" stroke="#2458D6" stroke-width="5" stroke-linejoin="round"/><ellipse cx="24" cy="43" rx="4" ry="2.6" fill="#F7A8B8"/><ellipse cx="56" cy="43" rx="4" ry="2.6" fill="#F7A8B8"/></g>
+<circle id="mdot" cx="60" cy="60" r="6" fill="#FFC94D" stroke="#fff" stroke-width="2"/>
+<symbol id="m1" viewBox="0 0 80 80"><use href="#mb"/><circle cx="32" cy="35" r="4" fill="#2458D6"/><circle cx="48" cy="35" r="4" fill="#2458D6"/><path d="M33.5 44 Q40 49.5 46.5 44" stroke="#2458D6" stroke-width="4" fill="none" stroke-linecap="round"/><use href="#mdot"/></symbol>
+<symbol id="m2" viewBox="0 0 80 80"><path d="M8 2 L9.6 6.4 L14 8 L9.6 9.6 L8 14 L6.4 9.6 L2 8 L6.4 6.4Z" fill="#FFC94D"/><use href="#mb"/><path d="M28 37 Q32 31 36 37 M44 37 Q48 31 52 37" stroke="#2458D6" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M33 42 Q40 52 47 42Z" fill="#2458D6"/><use href="#mdot"/></symbol>
+<symbol id="m3" viewBox="0 0 80 80"><use href="#mb"/><circle cx="35" cy="32" r="4" fill="#2458D6"/><circle cx="51" cy="32" r="4" fill="#2458D6"/><circle cx="42" cy="45" r="3" fill="#2458D6"/><use href="#mdot"/><rect x="1" y="0" width="26" height="12" rx="6" fill="#fff" stroke="#2458D6" stroke-width="2"/><circle cx="8" cy="6" r="1.8" fill="#2458D6"/><circle cx="14" cy="6" r="1.8" fill="#2458D6"/><circle cx="20" cy="6" r="1.8" fill="#2458D6"/></symbol>
+<symbol id="m4" viewBox="0 0 80 80"><use href="#mb"/><circle cx="32" cy="35" r="4" fill="#2458D6"/><circle cx="48" cy="35" r="4" fill="#2458D6"/><path d="M34 44 Q40 48.5 46 44" stroke="#2458D6" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="62" cy="58" r="9" fill="#fff" stroke="#1F2328" stroke-width="3.5"/><path d="M68.5 64.5 L76 72" stroke="#1F2328" stroke-width="4.5" stroke-linecap="round"/></symbol>
+<symbol id="m5" viewBox="0 0 80 80"><use href="#mb"/><circle cx="32" cy="36" r="4" fill="#2458D6"/><circle cx="48" cy="36" r="4" fill="#2458D6"/><path d="M27 28 L35 27 M45 27 L53 28 M36 46 H44" stroke="#2458D6" stroke-width="3.6" stroke-linecap="round"/><circle cx="62" cy="60" r="9" fill="#FFC94D" stroke="#fff" stroke-width="2"/><path d="M62 55 V61" stroke="#5A3B00" stroke-width="2.6" stroke-linecap="round"/><circle cx="62" cy="65" r="1.5" fill="#5A3B00"/></symbol>
+<symbol id="m6" viewBox="0 0 80 80"><use href="#mb"/><path d="M28 37 Q32 31 36 37 M44 37 Q48 31 52 37 M33 43 Q40 50 47 43" stroke="#2458D6" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="62" cy="60" r="9" fill="#1F9D6B" stroke="#fff" stroke-width="2"/><path d="M57.5 60 L61 63.5 L67 56.5" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="m7" viewBox="0 0 80 80"><use href="#mb"/><path d="M28 34 Q32 37.5 36 34" stroke="#2458D6" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="48" cy="34" r="4" fill="#2458D6"/><path d="M35 41 Q40 44.5 45 41" stroke="#2458D6" stroke-width="3.6" fill="none" stroke-linecap="round"/><rect x="24" y="47" width="32" height="7" rx="2" fill="#1F2328" transform="rotate(-8 40 50)"/><use href="#mdot"/></symbol>
+<symbol id="m8" viewBox="0 0 80 80"><use href="#mb"/><path d="M28 36 H36 M44 36 H52 M37 45 Q40 47 43 45" stroke="#2458D6" stroke-width="4" fill="none" stroke-linecap="round"/><use href="#mdot"/><path d="M4 14 H11 L4 21 H11 M14 3 H19 L14 8 H19" stroke="#2458D6" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="m9" viewBox="0 0 80 80"><use href="#mb"/><circle cx="32" cy="36" r="4" fill="#2458D6"/><circle cx="48" cy="36" r="4" fill="#2458D6"/><path d="M27 29 L34 27 M46 27 L53 29 M33 47 Q36.5 43.5 40 47 Q43.5 50.5 47 47" stroke="#2458D6" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M8 20 Q12.5 28 8 31 Q3.5 28 8 20Z" fill="#8FC7FF"/><use href="#mdot"/></symbol>
+<marker id="aM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L10,5 L0,9z" fill="#2458D6"/></marker>
+<marker id="aE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L10,5 L0,9z" fill="#8A9099"/></marker>
+<marker id="aC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,1 L10,5 L0,9z" fill="#7F77DD"/></marker>
+</defs></svg>
+
+<div id="stage"><div id="world"><svg id="wires"></svg><div id="intro"></div><div id="lanes"></div></div></div>
+
+<div class="toolbar">
+  <button id="zoomOut" title="축소">−</button><span class="zoom" id="zoomText">50%</span><button id="zoomIn" title="확대">+</button>
+  <button id="zoomFit">맞춤</button><button id="goIntro">안내</button>
+</div>
+<div class="hint">드래그: 이동 · 휠: 확대/축소 · 보드나 버튼을 누르면 폰 미리보기 · 미리보기 안에서는 모든 버튼이 이동해요</div>
+
+<div id="viewer">
+  <div class="vhold" id="vhold"><div id="vphone"></div></div>
+  <aside class="vside">
+    <h3 id="vtitle"></h3>
+    <div class="mut" id="vlane"></div>
+    <div class="vnav"><button id="vback">← 이전 화면</button><button id="vcanvas">캔버스에서 보기</button><button id="vclose" class="pri">닫기</button></div>
+    <div id="vscen"></div>
+    <div class="vmsg" id="vmsg"></div>
+    <div id="vmemo"></div>
+  </aside>
+</div>
+
+<script>
+// ============================================================
+// 1. 작은 부품: 아이콘, 캐릭터, 이동 연결
+// ============================================================
+const ICON_PATHS = {
+  back:'<path d="M15 5l-7 7 7 7"/>', chev:'<path d="M9 5l7 7-7 7"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  home:'<path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/>',
+  filePlus:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/><path d="M12 11v6M9 14h6"/>',
+  files:'<path d="M8 3h8l4 4v12H8z"/><path d="M4 7v14h12"/>',
+  cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  upload:'<path d="M12 16V5M7 10l5-5 5 5"/><path d="M5 19h14"/>',
+  warn:'<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>', check:'<path d="M5 12l5 5 9-10"/>',
+  search:'<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.5M4 12h.5M4 18h.5"/>',
+  undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  move:'<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+  send:'<path d="M4 12l16-8-6 16-2-7z"/>', edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  doc:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  swap:'<path d="M7 7h13l-4-4M17 17H4l4 4"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>',
+  info:'<circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8v.5"/>', refresh:'<path d="M20 11a8 8 0 1 0-2 6"/><path d="M20 5v6h-6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', image:'<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 16l5-5 4 4 3-3 4 4"/>',
+};
+const icon = (name, size = 20) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${ICON_PATHS[name]}</svg>`;
+const mascot = (expression, size = 40) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 80 80" style="flex:none" aria-hidden="true"><use href="#m${expression}"/></svg>`;
+
+// data-go: 누르면 이동할 보드. data-arrow: 캔버스에 화살표로 그릴지 (m 기본 흐름 / e 예외·되돌아감 / c 챗봇)
+const go = (target, arrow, label) =>
+  target ? ` data-go="${target}"${arrow ? ` data-arrow="${arrow}"` : ''}${label ? ` data-label="${label}"` : ''}` : '';
+
+// data-act: 다른 화면으로 가지 않고 이 화면 안에서 일어나는 일 (미리보기에서 누르면 설명으로 보여준다)
+const act = description => ` data-act="${description}"`;
+const button = (text, target, kind = 'p', arrow, inPlaceAction) => `<a class="btn ${kind}"${go(target, arrow)}${inPlaceAction ? act(inPlaceAction) : ''}>${text}</a>`;
+const tag = (text, color = 'gry', iconName) => `<span class="tag t-${color}">${iconName ? icon(iconName, 12) : ''}${text}</span>`;
+const say = (expression, text, size = 44) => `<div class="say">${mascot(expression, size)}<div class="bub">${text}</div></div>`;
+const footer = (...buttons) => `<div class="ft">${buttons.join('')}</div>`;
+const screen = (head, body, foot = '') => `<div class="scr">${head}<div class="bd">${body}</div>${foot}</div>`;
+
+const AI_CHAT_HOME = 'S10_챗봇_처음열기_일반';
+function header(title, options = {}) {
+  const left = options.home
+    ? '<b class="logo">문서AI</b><span class="ht"></span>'
+    : `${options.back === false ? '<span style="width:10px"></span>' : `<a class="hb"${go(options.back, options.backArrow)}>${icon('back', 22)}</a>`}<span class="ht">${title}</span>`;
+  return `<div class="hd-w"><div class="sb"><span>9:41</span><span>●●● ▮</span></div><div class="hd">${left}`
+    + `<a class="hi"${go('P01_알림패널')}>${icon('bell', 22)}</a>`
+    + `<a class="ai-chip"${go(options.ai || AI_CHAT_HOME, options.aiArrow)}>${mascot(1, 22)}AI에게 질문</a></div>${options.sub || ''}</div>`;
+}
+
+const TABS = [['home', '홈', 'S01_홈_기본'], ['filePlus', '계약서 등록', 'S02_문서선택_기본'], ['files', '내 계약서', 'S15_내계약서_목록'], ['cal', '내 일정', 'S14_내일정_목록']];
+const tabBar = active => `<div class="tb">${TABS.map(([i, t, id]) => `<a class="${t === active ? 'on' : ''}"${go(id)}>${icon(i, 22)}${t}</a>`).join('')}</div>`;
+
+// 등록 4단계. 끝낸 단계(앞 단계든, 갔다가 돌아온 뒷 단계든)는 눌러서 바로 갈 수 있다
+const STEP_LABELS = ['종류', '올리기', '가리기', '확인'];
+const STEP_SCREENS = ['S02_문서선택_기본', 'S04_미리보기_정상', 'S05_가리기_가림추가', 'S06_최종확인_정상'];
+function progressSteps(current, finishedAhead = []) {
+  return `<div class="stp">${STEP_LABELS.map((label, i) => {
+    const n = i + 1, finished = n < current || finishedAhead.includes(n), isCurrent = n === current;
+    const link = finished && !isCurrent ? go(STEP_SCREENS[i]) : (isCurrent ? '' : act('아직 끝내지 않은 단계라 누를 수 없어요.'));
+    return `<a class="sd ${isCurrent ? 'cur' : finished ? 'done' : ''}"${link}>${finished && !isCurrent ? icon('check', 12) : n}</a><a class="sl ${isCurrent ? 'cur' : ''}"${link}>${label}</a>${n < 4 ? '<i></i>' : ''}`;
+  }).join('')}</div>`;
+}
+// 등록 단계 화면의 아래 버튼: 왼쪽 = 이전 단계, 오른쪽 = 다음 단계 (아직 못 넘어가면 회색)
+function stepFooter(current, next) {
+  const previous = button(`‹ 이전: ${STEP_LABELS[current - 2]}`, next.previousTarget || STEP_SCREENS[current - 2], 'l', next.previousArrow);
+  const nextButton = next.ready === false
+    ? `<a class="btn off"${act(next.notReadyReason)}>${next.label} ›</a>`
+    : button(`${next.label} ›`, next.target, 'p', next.arrow);
+  return footer(previous, nextButton);
+}
+
+// 겹쳐 보이는 화면: 아래 화면은 흐리게 두고 패널·확인창을 위에 얹는다
+const layered = (base, ...layers) =>
+  `<div class="ov"><div class="base">${base}</div>${layers.map((layer, i) => `<div class="dim ${i ? 'd2' : ''}"></div>${layer}`).join('')}</div>`;
+const sheet = (inner, small) => `<div class="sheet ${small ? 's60' : ''}">${inner}</div>`;
+const dialog = ({ face, title, text, extra = '', buttons }) =>
+  `<div class="dlg">${face ? `<div style="display:flex;justify-content:center">${mascot(face, 64)}</div>` : ''}<div class="dt">${title}</div><div class="dd">${text}</div>${extra}<div class="db">${buttons.join('')}</div></div>`;
+
+// ============================================================
+// 2. S10 챗봇 패널
+// ============================================================
+function chatPanel({ close, linkedDoc, linkNote, context, banner, messages, chips = [], input }) {
+  const link = linkedDoc
+    ? `<div class="cl on">${icon('doc', 15)}<span>내 문서 · <b>${linkedDoc}</b></span>${linkNote || ''}</div>`
+    : `<div class="cl">${icon('info', 15)}<span>일반 질문 · 계약서 연결 없음</span></div>`;
+  const renderMessage = m => {
+    if (m.me) return `<div class="me">${m.me}</div>`;
+    // 법령을 참고한 답변에는 원문 링크와 AI 실수 안내를 함께 붙인다
+    const lawSource = m.refs?.includes('법령 DB')
+      ? `<div class="refs"><span class="src"${act('국가법령정보센터(law.go.kr)에서 답변에 쓴 조문 원문이 열려요 (앱 밖).')}>법령 원문 ↗</span><span>AI도 실수할 수 있어요. 원문을 함께 확인해 주세요.</span></div>` : '';
+    const refs = m.refs ? `<div class="refs"><span>참고한 정보</span>${m.refs.map(r => `<em>${r}</em>`).join('')}</div>${lawSource}` : '';
+    const acts = m.acts ? `<div class="acts">${m.acts.map(([t, id, ar]) => `<a class="act"${go(id, ar, t)}>${t}${icon('chev', 14)}</a>`).join('')}</div>` : '';
+    return `<div class="air">${mascot(m.face || 1, 30)}<div class="aib ${m.fail ? 'fail' : ''}">${m.ai}${refs}${acts}</div></div>`;
+  };
+  return sheet(`<div class="grab"></div><div class="sh-t">${mascot(1, 30)}<b>AI에게 질문</b><a class="x"${go(close)}>${icon('x', 22)}</a></div>`
+    + link + `<div class="ctx">${icon('info', 13)}<span>${context}</span></div>` + (banner || '')
+    + `<div class="msgs">${messages.map(renderMessage).join('')}</div>`
+    + `<div class="qcs">${chips.map(c => Array.isArray(c) ? `<a class="qc"${go(c[1], c[2], c[0])}>${c[0]}</a>` : `<span class="qc"${act('이 질문을 바로 보내요.')}>${c}</span>`).join('')}</div>`
+    + `<div class="inp"${act('질문을 직접 입력해 보내요. 계약서가 없어도 돼요.')}><span class="${input ? 'typed' : ''}">${input || '궁금한 걸 물어보세요'}</span><b>${icon('send', 18)}</b></div>`);
+}
+
+// 화면별 추천 질문 (구자건 챗봇 질문서)
+const SUGGESTED = {
+  S01: ['어떤 도움을 받을 수 있어?', '계약하기 전에 무엇부터 확인해야 해?', '어떤 서류를 올리면 돼?'],
+  S02: ['이 서류가 어떤 계약서인지 모르겠어.', '아르바이트 계약서는 무엇을 선택해?', '전세·월세 계약서는 무엇을 선택해?'],
+  S03: ['계약서가 여러 장인데 어떻게 올려?', '사진을 어떻게 찍어야 잘 읽혀?', '어떤 파일을 올릴 수 있어?'],
+  S04: ['빠진 페이지가 없는지 어떻게 확인해?', '글자가 흐린데 다시 찍어야 해?', '잘못 올린 페이지는 어떻게 바꿔?'],
+  S05: ['어떤 개인정보를 가리면 돼?', '금액이나 날짜도 가려야 해?', '잘못 가린 부분은 어떻게 되돌려?'],
+  S06: ['분석 전에 마지막으로 무엇을 확인해?', 'AI에는 어떤 문서가 전달돼?', '개인정보를 더 가리려면 어떻게 해?'],
+  S07: ['분석 결과에는 어떤 내용이 나와?', '분석이 실패하면 어떻게 해야 해?', '계약서에서 특약이 무슨 뜻이야?'],
+  S08: ['이 계약에서 먼저 확인할 내용은 뭐야?', '중요한 조건을 쉽게 정리해 줘.', '아직 확인되지 않은 정보가 있어?'],
+  S09: ['이 조항을 쉬운 말로 설명해 줘.', '이 조항이 나에게 어떤 영향을 줘?', '상대방에게 무엇을 확인하면 돼?'],
+  S11: ['어떤 문서끼리 비교해야 해?', '이전본과 수정본은 어떻게 구분해?', '페이지가 빠져 있어도 비교할 수 있어?'],
+  S12: ['가장 중요하게 바뀐 내용은 뭐야?', '바뀐 금액과 날짜만 정리해 줘.', '추가된 조항에서 무엇을 확인해야 해?'],
+  S13: ['이 날짜는 계약서 어디에 나와?', '종료일과 갱신 관련 기한은 어떻게 달라?', '날짜가 없으면 직접 입력할 수 있어?'],
+  S14: ['일정과 연결된 계약서를 보고 싶어.', '보관된 문서는 어디에서 찾아?', '휴대폰 알림도 받을 수 있어?'],
+  S15: ['이 문서를 연결해서 질문하고 싶어.', '이전 분석 결과를 다시 보고 싶어.', '보관한 계약서끼리 비교할 수 있어?'],
+};
+const suggested = code => SUGGESTED[code].join(' / ');
+
+// ============================================================
+// 3. 화면 (S00~S15) — 패널·확인창의 바탕으로도 다시 쓴다
+// ============================================================
+const scheduleRow = (dday, color, title, doc, target = 'S14_일정상세') =>
+  `<a class="ev"${go(target)}><span class="dday t-${color}">${dday}</span><span><b>${title}</b><small>${doc}</small></span>${icon('chev', 16)}</a>`;
+
+function homeScreen(firstUse) {
+  const upcoming = firstUse
+    ? `<div class="card empty">${mascot(8, 64)}<b>아직 챙길 일정이 없어요</b><span class="mut">계약서를 분석하면 신고 기한·첫 출근 같은 날짜를 모아 드려요</span></div>`
+    : `<div class="card"><div class="h2">다가오는 일정<a class="more"${go('S14_내일정_목록', 'm', '전체 보기')}>전체 보기</a></div>`
+      + scheduleRow('D-8', 'red', '입주·전입신고', '역삼동 원룸 월세 계약서 · 예시')
+      + scheduleRow('D-19', 'blu', '첫 출근 (계약 시작일)', '카페 알바 근로계약서 · 예시') + '</div>';
+  return screen(header('', { home: true, ai: AI_CHAT_HOME, aiArrow: firstUse ? '' : 'c' }),
+    say(2, '받은 계약서, 서명 전에 <b>같이 읽어봐요.</b><br><span class="mut">확인할 조항·빠진 항목·기한을 근거와 함께 알려 드려요</span>', 60)
+    + `<div class="hero"><a class="hbtn"${go('S02_문서선택_기본', firstUse ? '' : 'm', '계약서 촬영')}>${icon('camera', 26)}<b>계약서 촬영</b><small>카메라로 바로 찍기</small></a>`
+    + `<a class="hbtn w"${go('S02_문서선택_기본')}>${icon('upload', 26)}<b>파일·앨범 올리기</b><small>PDF, 사진 여러 장</small></a></div>`
+    + `<div class="note" style="justify-content:center">${icon('lock', 14)} 개인정보는 내가 직접 가린 뒤에만 AI에 보내요</div>`
+    + upcoming
+    + `<div class="card"><div class="h2">내 상황에 맞는 문서 찾기<a class="more"${go('S02_문서선택_기본')}>23종 보기</a></div>`
+    + `<div class="lane2"><b>집</b>${['집 구하기 6', '입주·거주 4', '계약 종료·이사 3'].map(s => `<a class="chip"${go('S02_문서선택_기본')}>${s}</a>`).join('')}</div>`
+    + `<div class="lane2"><b>일</b>${['취업·근로 시작 6', '급여·퇴직 4'].map(s => `<a class="chip"${go('S02_문서선택_근로급여')}>${s}</a>`).join('')}</div></div>`
+    + `<a class="card row"${go('S08_분석결과_정상', firstUse ? '' : 'm', '예시로 해보기')}>${mascot(4, 46)}<span style="flex:1"><b>예시 계약서로 먼저 해보기</b><br><span class="mut">카페 알바 근로계약서 · 예시</span></span>${icon('chev', 18)}</a>`,
+    tabBar('홈'));
+}
+
+// 지원 문서 23종 (문서ai.html 주거·근로 범위). 근로계약서·임대차계약서 외는 PoC 구현 제외
+const DOCS_HOME = [
+  ['집 구하기', [['임대차계약서', 'A', '임대인 = 등기부 소유자인지, 특약, 관리비'], ['등기부등본', 'A', '소유자, 근저당·가압류, 신탁 여부'], ['건축물대장', 'A', '위반건축물, 주택 용도인지'], ['중개대상물 확인·설명서', 'A', '계약서·등기부와 내용 일치'], ['전세보증보험 안내·가입서', 'B', '가입 가능 여부, 보증 한도'], ['전세자금대출 약정서', 'B', '금리 방식, 만기, 연장 조건']]],
+  ['입주·거주', [['전입신고·확정일자 안내', 'A', '입주일 당일 신고'], ['관리비 고지서', 'B', '계약서와 다른 청구'], ['공과금 고지서', 'A', '납부 기한, 가산금'], ['보증금·월세 인상 통지', 'A', '인상률 상한, 통지 시점']]],
+  ['계약 종료·이사', [['갱신·퇴거 통지', 'A', '만료 6~2개월 전 통지'], ['원상복구·정산 요구서', 'B', '통상 마모까지 청구하는지'], ['보증금 미반환 시 절차 안내', 'A', '이사 전 임차권등기', '이사 전 확인']]],
+];
+const DOCS_WORK = [
+  ['취업·근로 시작', [['근로계약서', 'A', '필수 기재사항, 최저임금, 주휴수당'], ['연봉계약서', 'A', '고정 연장수당이 몇 시간분인지'], ['수습·인턴 계약서', 'A', '수습 감액 기간·대상 조건'], ['프리랜서 용역계약서 (3.3%)', 'B', '근로자처럼 일하는지, 대금 지급일'], ['비밀유지·경업금지 서약서', 'B', '금지 기간·지역, 배상액'], ['입사 서류 요구 목록', 'B', '요구하는 서류가 정상인지', '통장·체크카드 요구는 사기 신호']]],
+  ['급여·퇴직', [['임금명세서', 'A', '계약서와 금액 대조'], ['해고 통지서', 'A', '서면 여부, 30일 전 예고', '구제신청 기한 3개월'], ['사직서·퇴직 정산', 'A', '퇴직금 대상 여부'], ['실업급여 안내', 'B', '자발적 퇴사 예외 사유']]],
+];
+const gradeTag = grade => grade === 'A' ? tag('A 깊게 점검', 'grn') : tag('B 공통 점검', 'amb');
+const docRow = ([name, grade, check, urgent], arrow) =>
+  `<a class="li"${go('S03_입력방식_선택', arrow, '문서 선택')}><span style="flex:1"><b>${name}</b> ${gradeTag(grade)}<br><span class="mut">${check}</span>${urgent ? `<br>${tag(urgent, 'red', 'warn')}` : ''}</span>${icon('chev', 16)}</a>`;
+const docGroups = (groups, arrowFirst) => groups.map(([title, docs], gi) =>
+  `<div class="sec-h">${title} ${docs.length}</div><div class="card" style="padding:4px 16px">${docs.map((d, i) => docRow(d, arrowFirst && gi === 0 && i === 0 ? 'm' : '')).join('')}</div>`).join('');
+
+function documentPickerScreen(area) {
+  const isHome = area === '집';
+  return screen(header('계약서 등록', { back: false, ai: 'S10_챗봇_답변_사용법' }),
+    `<a class="srch"${go('S02_문서선택_검색결과', isHome ? 'e' : '', '검색')}>${icon('search', 18)}문서 이름이나 단어로 찾기 (예: 보증금)</a>`
+    + `<div class="h2" style="margin:4px 0 0">많이 찾는 계약서</div><div class="pop">`
+    + `<a${go('S03_입력방식_선택', isHome ? 'm' : '', '근로계약서')}>${tag('일', 'blu')}<b>근로계약서</b><span class="mut">알바·정규·계약직</span></a>`
+    + `<a${go('S03_입력방식_선택')}>${tag('집', 'blu')}<b>임대차계약서</b><span class="mut">전세·월세·반전세</span></a></div>`
+    + `<div class="seg"><a class="${isHome ? 'on' : ''}"${go('S02_문서선택_기본')}>집 13종</a><a class="${isHome ? '' : 'on'}"${go('S02_문서선택_근로급여', isHome ? 'e' : '', '일 13→10종')}>일 10종</a></div>`
+    + `<div class="note">${tag('A 깊게 점검', 'grn')} 확인할 조항·근거 조문까지 ${tag('B 공통 점검', 'amb')} 공통 항목과 기한</div>`
+    + docGroups(isHome ? DOCS_HOME : DOCS_WORK)
+    + `<a class="card row"${go('S10_챗봇_답변_사용법')}>${mascot(1, 40)}<span style="flex:1"><b>어떤 문서인지 모르겠어요</b><br><span class="mut">AI에게 물어보면 골라 드려요</span></span>${icon('chev', 16)}</a>`,
+    tabBar('계약서 등록'));
+}
+
+function searchResultScreen() {
+  const results = [['임대차계약서', 'A', '집 구하기 · 보증금·월세·관리비 확인'], ['전세보증보험 안내·가입서', 'B', '집 구하기 · 보증 한도'], ['보증금·월세 인상 통지', 'A', '입주·거주 · 인상률 상한'], ['보증금 미반환 시 절차 안내', 'A', '계약 종료·이사 · 임차권등기', '이사 전 확인']];
+  return screen(header('계약서 등록', { back: 'S02_문서선택_기본', ai: 'S10_챗봇_답변_사용법' }),
+    `<div class="srch" style="color:var(--ink)">${icon('search', 18)}보증금<span style="margin-left:auto"${act('검색어를 지워요.')}>${icon('x', 16)}</span></div>`
+    + say(4, '‘보증금’이 들어간 문서가 <b>4종</b> 있어요', 40)
+    + `<div class="card" style="padding:4px 16px">${results.map((d, i) => docRow(d, i === 0 ? 'm' : '')).join('')}</div>`
+    + `<div class="note">${icon('info', 14)} 찾는 문서가 없으면 AI에게 질문에서 문서 이름을 물어보세요</div>`,
+    tabBar('계약서 등록'));
+}
+
+function uploadMethodScreen() {
+  const option = (iconName, title, sub, target, arrow) => `<a class="opt"${go(target, arrow, title)}><span class="oi">${icon(iconName, 26)}</span><span style="flex:1"><b style="font-size:16px">${title}</b><br><span class="mut">${sub}</span></span>${icon('chev', 18)}</a>`;
+  return screen(header('계약서 올리기', { back: 'S02_문서선택_기본', ai: 'S10_챗봇_처음열기_일반', sub: progressSteps(2) }),
+    `<div class="card row" style="padding:12px 14px">${icon('doc', 20)}<b style="flex:1">근로계약서</b><a class="mut"${go('S02_문서선택_기본')}>바꾸기</a></div>`
+    + option('camera', '카메라로 찍기', '여러 장을 이어서 찍을 수 있어요', 'S03_촬영_카메라', 'm')
+    + option('image', '앨범·파일에서 고르기', '사진 여러 장, PDF', 'S04_미리보기_정상', 'm')
+    + `<div class="card"><div class="h2">잘 읽히게 찍는 법</div><div class="mut">· 네 모서리가 모두 보이게<br>· 그림자 없이 밝은 곳에서<br>· 특약·별지 페이지까지 빠짐없이</div></div>`
+    + `<div class="note">${icon('lock', 14)} 찍은 사진은 다음 단계에서 직접 가린 뒤에만 AI에 보내요</div>`,
+    stepFooter(2, { label: '다음: 가리기', ready: false, notReadyReason: '사진이나 파일을 올리면 눌러져요.' }));
+}
+
+function cameraScreen() {
+  return `<div class="cam"><div class="sb" style="color:#fff"><span>9:41</span><span>●●● ▮</span></div>
+    <div class="row" style="justify-content:space-between;padding:8px 18px"><a${go('S03_입력방식_선택')}>취소</a><span class="mut" style="color:#bbb">휴대폰 기본 카메라</span><span style="width:30px"></span></div>
+    <div class="frame">문서 네 모서리를<br>틀에 맞춰 주세요</div>
+    <div class="row" style="justify-content:space-between;padding:10px 24px 34px">
+      <span class="row" style="gap:6px"><span style="width:40px;height:52px;border-radius:6px;background:#eee;color:#111;display:flex;align-items:center;justify-content:center;font-weight:700">1</span><span style="width:40px;height:52px;border-radius:6px;background:#eee;color:#111;display:flex;align-items:center;justify-content:center;font-weight:700">2</span></span>
+      <span class="shutter"${act('한 장 찍어 왼쪽 목록에 더해요.')}></span>
+      <a class="btn p s"${go('S04_미리보기_정상', 'm', '완료 (2장)')}>완료 2</a></div></div>`;
+}
+
+const pageThumb = (no, options = {}) =>
+  `<div class="pth"><div class="pimg ${options.blur ? 'blur' : ''}">${'<div class="ln"></div>'.repeat(3)}<div class="ln ${options.masked ? 'mk' : ''}" style="width:70%"></div>${'<div class="ln"></div>'.repeat(4)}<div class="ln ${options.masked ? 'mk' : ''}" style="width:50%"></div></div>`
+  + `<div class="row" style="justify-content:space-between"><b>${no}쪽</b>${options.flag || ''}</div>`
+  + (options.noActions ? '' : `<div class="pa"><a${go('S03_촬영_카메라', options.retakeArrow, '다시 찍기')}>다시 찍기</a><a${act('이 쪽을 지워요. 지우기 전에 한 번 더 물어봐요.')}>삭제</a></div>`) + '</div>';
+
+// state: normal / blurred(흐린 쪽 있음) / afterMask(가리기에서 ‹ 이전: 올리기로 돌아옴)
+function previewScreen(state = 'normal') {
+  const blurred = state === 'blurred', afterMask = state === 'afterMask';
+  const top = blurred
+    ? `<div class="warnb">${icon('warn', 18)}<span style="flex:1"><b>2쪽 글자가 흐려요</b><br>흐린 쪽은 일부를 읽지 못할 수 있어요. 그대로 넘어가도 돼요.</span><a class="btn l s"${go('S03_촬영_카메라')}>다시 찍기</a></div>`
+    : afterMask
+      ? `<div class="infob">${icon('info', 18)}<span><b>이미 올린 2쪽이에요. 여기서 고칠 수 있어요.</b><br>다시 찍거나 바꾼 쪽은 새로 가려야 해요. 바꾸지 않은 쪽의 가린 곳은 그대로 남아요.</span></div>`
+      : `<div class="row"><b style="font-size:16px">근로계약서 2쪽</b><span class="mut" style="margin-left:auto">길게 눌러 순서 바꾸기</span></div>`;
+  const pages = afterMask
+    ? pageThumb(1, { masked: true, flag: tag('가린 곳 5', 'ink') }) + pageThumb(2, { flag: tag('가린 곳 0', 'gry') })
+    : pageThumb(1) + pageThumb(2, blurred ? { blur: true, flag: tag('흐림', 'amb', 'warn'), retakeArrow: 'e' } : {});
+  return screen(header('올린 페이지 확인', { back: 'S03_입력방식_선택', ai: 'S10_챗봇_처음열기_일반', sub: progressSteps(2, afterMask ? [3] : []) }),
+    top
+    + `<div class="pages">${pages}<a class="addp"${go('S03_촬영_카메라')}>${icon('plus', 22)}쪽 추가</a></div>`
+    + `<div class="card"><div class="h2">넘어가기 전에 확인해 주세요</div><div class="mut">· 특약·별지까지 모든 쪽을 올렸나요?<br>· 금액·날짜 글자가 또렷한가요?</div></div>`,
+    stepFooter(2, { label: '다음: 가리기', target: afterMask ? 'S05_가리기_가림추가' : 'S05_가리기_직접가리기', arrow: state === 'normal' ? 'm' : '' }));
+}
+
+const maskBar = width => `<span class="mkb" style="width:${width}px"></span>`;
+const paperRow = (label, value) => `<div class="prow"><span>${label}</span><span>${value}</span></div>`;
+
+// state: select(끌어서 영역 지정 중) / added(방금 가림) / undone(되돌림) / zoom(이동·확대) / page2(가릴 정보 없는 쪽) / returned(확인 단계에서 고치러 돌아옴)
+function maskingScreen(state = 'select') {
+  const contact = {
+    select: `<a class="sel"${go('S05_가리기_가림추가', 'm', '손을 떼면 가려짐')}>010-0000-0000</a>`,
+    added: `<span style="outline:3px solid #FFC94D;border-radius:4px;display:inline-flex">${maskBar(110)}</span>`,
+    returned: maskBar(110),
+  }[state] || '010-0000-0000';
+  const page1Paper = `<div class="paper"><div class="pt">단시간근로자 표준근로계약서 ${tag('예시', 'gry')}</div>${paperRow('사업주', maskBar(90))}${paperRow('근로자', maskBar(70))}${paperRow('주민등록번호', maskBar(130))}`
+    + `<div class="prow" ${state === 'zoom' ? 'style="outline:3px solid #2458D6;border-radius:6px"' : ''}><span>주소</span><span>${maskBar(160)}</span></div>`
+    + `${paperRow('시급', '10,000원')}${paperRow('근로시간', '주 20시간')}${paperRow('연락처', contact)}${paperRow('계약기간', '2026.12.01 ~ 2027.02.28')}</div>`;
+  const paper = state === 'page2'
+    ? `<div class="paper"><div class="pt">특약 사항 ${tag('예시', 'gry')}</div>${paperRow('제7조', '1년 이내 퇴사 시 교육비 30만 원을 반환한다.')}${paperRow('제8조', '근무 시간 변경은 1주 전에 알린다.')}${paperRow('작성일', '2026.11.10')}</div>`
+    : state === 'zoom'
+      ? `<div style="height:300px;overflow:hidden;border-radius:10px;border:1px solid #DDE1E6;background:#fff"><div style="transform:scale(1.6);transform-origin:0 46%">${page1Paper}</div></div>`
+      : page1Paper;
+  const guide = {
+    page2: say(1, '이 쪽에 이름·번호처럼 <b>나를 알아볼 수 있는 정보가 없다면</b> 가리지 않고 넘어가도 돼요.', 40),
+    zoom: say(4, '두 손가락으로 벌려 <b>확대</b>하고, 한 손가락으로 끌어 <b>옮겨</b> 보세요. 목록의 <b>보기</b>를 누르면 그 위치(주소)로 확대돼요.', 40),
+    added: say(6, '<b>연락처</b>를 가렸어요. 가린 칸은 노란 테두리로 잠깐 표시돼요.', 40),
+    undone: say(1, '마지막으로 가린 <b>연락처</b>를 되돌렸어요. 다시 끌어서 가릴 수 있어요.', 40),
+    returned: say(1, '확인 단계에서 돌아왔어요. 가린 곳을 고친 뒤 <b>다시 확인</b>을 받아요. 위의 <b>4 확인</b>을 눌러도 바로 갈 수 있어요.', 40),
+  }[state] || say(7, '가릴 곳을 손가락으로 <b>끌어서</b> 지정하고, 손을 떼면 가려져요. (파란 점선 = 지정 중)', 40);
+  const maskedCount = state === 'added' || state === 'returned' ? 5 : 4;
+  const tools = `<div class="tools">`
+    + `<a class="tool ${state === 'zoom' ? '' : 'on'}"${state === 'zoom' ? go('S05_가리기_직접가리기', 'e', '가리기로') : act('가리기 모드예요. 끌어서 가릴 영역을 정해요.')}>${icon('edit', 18)}가리기</a>`
+    + `<a class="tool ${state === 'zoom' ? 'on' : ''}"${state === 'zoom' ? act('이동·확대 모드예요. 가리기 없이 화면만 움직여요.') : go('S05_가리기_확대', state === 'select' ? 'e' : '', '이동·확대')}>${icon('move', 18)}이동·확대</a>`
+    + `<a class="tool"${state === 'added' ? go('S05_가리기_되돌림', 'e', '되돌리기') : act('마지막으로 가린 곳부터 하나씩 취소해요.')}>${icon('undo', 18)}되돌리기</a></div>`;
+  const page2 = state === 'page2';
+  return screen(header('개인정보 가리기', { back: 'S04_미리보기_정상', ai: 'S10_챗봇_가리기중', aiArrow: state === 'select' ? 'c' : '', sub: progressSteps(3, state === 'returned' ? [4] : []) }),
+    guide + paper
+    + `<div class="note">${icon('info', 14)} 금액·날짜·근무 장소는 남겨 두세요. 가린 곳은 분석하지 않아요.</div>`
+    + tools
+    + `<div class="row" style="justify-content:space-between"><a class="chip"${go('S05_가리기_직접가리기')}>‹ 이전 쪽</a><b>${page2 ? 2 : 1} / 2쪽</b><a class="chip"${go(page2 ? 'S05_가리기_직접가리기' : 'S05_가리기_가릴것없음', state === 'select' ? 'e' : '', '다음 쪽')}>다음 쪽 ›</a></div>`
+    + (page2 ? '' : `<a class="chip" style="align-self:center"${go('S05_가리기_가린곳목록', state === 'select' ? 'e' : '', '가린 곳 보기')}>${icon('list', 16)} 가린 곳 ${maskedCount}개 보기</a>`)
+    + (state === 'added' ? `<div class="toast" style="bottom:96px">${icon('check', 16)}<span style="flex:1">연락처를 가렸어요</span><a${go('S05_가리기_되돌림')} style="font-weight:700;color:#8FB0FF">되돌리기</a></div>` : '')
+    + (state === 'undone' ? `<div class="toast" style="bottom:96px">${icon('undo', 16)}<span>연락처 가림을 되돌렸어요</span></div>` : ''),
+    stepFooter(3, { label: page2 ? '가릴 곳 없음, 다음: 확인' : '다음: 확인', target: 'S06_최종확인_정상', arrow: page2 || state === 'added' || state === 'returned' ? 'm' : '', previousTarget: 'S04_미리보기_가리기후수정', previousArrow: state === 'added' ? 'e' : '' }));
+}
+
+function maskedListSheet(removedAddress) {
+  const item = (label, isAddress) => `<div class="li"><span class="tag t-ink">1쪽</span><span style="flex:1">${label}</span>`
+    + `<a class="chip"${go('S05_가리기_확대', isAddress && !removedAddress ? 'e' : '', '보기')}>보기</a>`
+    + `<a class="chip"${isAddress && !removedAddress ? go('S05_가리기_가린곳지움', 'e', '지우기') : act('이 가림을 지워요. 지운 곳은 보이는 채로 AI에 보내져요.')}>지우기</a></div>`;
+  const items = item('사업주 이름') + item('근로자 이름') + item('주민등록번호') + (removedAddress ? '' : item('주소', true));
+  const warning = removedAddress
+    ? `<div class="warnb" style="margin:8px 16px 0">${icon('warn', 18)}<span style="flex:1"><b>주소 가림을 지웠어요</b><br>지금은 주소가 보이는 채로 AI에 보내져요.</span><a class="btn l s"${go('S05_가리기_가린곳목록', 'e', '되돌리기')}>되돌리기</a></div>`
+    : '';
+  return sheet(`<div class="grab"></div><div class="sh-t"><b>가린 곳 ${removedAddress ? 3 : 4}개</b><a class="x"${go('S05_가리기_직접가리기')}>${icon('x', 22)}</a></div>`
+    + warning + `<div style="padding:0 16px">${items}</div>`
+    + `<div style="padding:12px 16px" class="note">${icon('info', 14)} 내가 직접 가린 곳이에요. 앱이 자동으로 찾은 것이 아니에요. 보기 = 그 위치로 확대 · 지우기 = 가림 해제</div>`, true);
+}
+
+function confirmScreen() {
+  const checkRow = (text, last) => `<div class="srow" ${last ? 'style="border:0"' : ''}${act('직접 확인했다는 표시예요. 눌러서 켜고 꺼요.')}><span class="cb on">${icon('check', 14)}</span><span>${text}</span></div>`;
+  return screen(header('보내기 전 확인', { back: 'S05_가리기_가림추가', ai: 'S10_챗봇_처음열기_일반', sub: progressSteps(4) }),
+    `<div class="infob">${icon('lock', 18)}<span>AI에는 <b>가린 이미지 2쪽</b>만 보내요.<br>가리기 전 원본은 보내지 않아요.</span></div>`
+    + `<div class="pages">${pageThumb(1, { masked: true, noActions: true, flag: tag('가린 곳 5', 'ink') })}${pageThumb(2, { noActions: true, flag: tag('가린 곳 0', 'gry') })}</div>`
+    + `<div class="card"><div class="h2">마지막으로 확인해 주세요</div>`
+    + checkRow('이름·주민번호·연락처·주소를 가렸어요') + checkRow('시급·근로시간·날짜는 보여요', true) + `</div>`
+    + `<div class="note">${icon('info', 14)} 가린 곳을 고치면 이 확인을 다시 받아요.</div>`,
+    stepFooter(4, { label: '분석 요청', target: 'S07_분석중_진행', arrow: 'm', previousTarget: 'S05_가리기_확인후수정', previousArrow: 'e' }));
+}
+
+function analyzingScreen() {
+  const stepRow = (state, label) => `<div class="pst ${state}"><span class="pd">${state === 'done' ? icon('check', 16) : ''}</span>${label}</div>`;
+  return screen(header('분석 중', { back: false, ai: 'S10_챗봇_분석중', aiArrow: 'c' }),
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 0">${mascot(3, 110)}<b style="font-size:19px">근로계약서를 읽고 있어요</b><span class="mut">보통 30초쯤 걸려요</span></div>`
+    + `<div class="card">${stepRow('done', '글자·항목 읽기')}${stepRow('done', '주요 조건 찾기')}${stepRow('doing', '법령 DB 조문과 맞춰 보기')}${stepRow('todo', '확인할 조항 정리')}</div>`
+    + `<div class="note">${icon('lock', 14)} 가린 이미지 2쪽만 사용해요</div>`
+    + `<div class="note">${icon('info', 14)} 다른 화면으로 가도 분석은 계속돼요. 끝나면 알려 드릴게요.</div>`
+    + `<a class="btn g s" style="align-self:center"${go('S07_분석실패', 'e', '실패하면')}>(실패했을 때 화면 보기)</a>`
+    + `<a class="btn g s" style="align-self:center"${go('S08_분석결과_정상', 'm', '분석 완료')}>(완료되면 결과로)</a>`);
+}
+
+function analysisFailedScreen() {
+  const reason = (title, text, label, target, arrow) => `<div class="card"><b>${title}</b><div class="mut" style="margin:2px 0 10px">${text}</div>${button(label, target, 'l', arrow)}</div>`;
+  return screen(header('분석 결과', { back: 'S01_홈_기본', ai: 'S10_챗봇_응답실패' }),
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0">${mascot(9, 90)}<b style="font-size:19px">분석하지 못했어요</b><span class="mut">이번 분석은 저장되지 않았어요</span></div>`
+    + reason('사진이 흐려요', '2쪽 글자를 읽을 수 없었어요.', '2쪽 다시 찍기', 'S03_촬영_카메라', 'e')
+    + reason('고른 종류와 달라 보여요', '근로계약서가 아니라 임대차계약서처럼 보여요.', '종류 다시 고르기', 'S02_문서선택_기본', 'e')
+    + reason('잠시 문제가 생겼어요', '가린 이미지는 그대로 있어요.', '다시 시도', 'S07_분석중_진행', 'e'));
+}
+
+// ----- S08 분석 결과 -----
+const condition = (label, value, state) => {
+  const note = state === 'warn' ? tag('확인 필요', 'red', 'warn') : state === 'miss' ? tag('적혀 있지 않아요', 'amb') : state === 'unk' ? tag('읽지 못함 · 확인 필요', 'amb', 'warn') : '';
+  return `<div class="cv ${state || ''}"><small>${label}</small><b>${value}</b>${note}</div>`;
+};
+const issueCard = ({ label, color, title, compare = '', text, law, target, arrow }) =>
+  `<a class="card iss"${go(target, arrow, '조항 자세히')}>${tag(label, color, 'warn')}<div class="it">${title}</div>${compare}<div class="mut">${text}</div><div class="law">${icon('doc', 13)} 근거: ${law}<span class="src"${act('국가법령정보센터(law.go.kr)의 그 조문 원문이 열려요 (앱 밖).')}>법령 원문 ↗</span></div><span class="more2">조항 자세히 ${icon('chev', 14)}</span></a>`;
+const resultTop = (name, meta, scope) =>
+  `<div><div class="row"><b style="font-size:21px">${name}</b>${tag('예시', 'gry')}</div><div class="mut">${meta}</div></div><div class="note">${icon('info', 14)} ${scope}</div>`;
+const disclaimer = `<div class="disc"><b>AI도 실수할 수 있어요.</b> 근거 법령은 '법령 원문 ↗'으로 원문을 함께 확인해 주세요. 법률 자문이 아니에요. 서명 여부는 직접 판단하시고, 애매하면 고용노동부 1350 · 대한법률구조공단 132에 물어보세요.</div>`;
+
+function workResultScreen() {
+  const clause = (no, title, status) => `<a class="li"${go('S09_조항상세_기본')}><b style="width:46px">${no}</b><span style="flex:1">${title}</span>${status}${icon('chev', 16)}</a>`;
+  const ok = tag('짚은 내용 없음', 'gry');
+  return screen(header('분석 결과', { back: 'S01_홈_기본', ai: 'S10_챗봇_내문서답변', aiArrow: 'c' }),
+    resultTop('카페 알바 근로계약서', '근로계약서 · A 깊게 점검 · 2026.11.12 분석', '2쪽 모두 읽었어요 · 직접 가린 5곳은 읽지 않았어요')
+    + `<div class="card"><div class="h2">주요 조건</div><div class="cg">${condition('임금', '시급 10,000원', 'warn')}${condition('근로시간', '주 20시간')}${condition('기간', '26.12.01 ~ 27.02.28')}${condition('휴일', '-', 'miss')}${condition('수당', '주휴수당 표시 없음', 'miss')}${condition('근무 장소', '카페 매장')}</div></div>`
+    + `<div class="cnt">${tag('확인 필요 2', 'red', 'warn')}${tag('빠진 항목 2', 'amb')}${tag('전체 조항 8', 'gry')}</div>`
+    + `<div class="h2" style="margin:6px 0 0">우선 확인할 조항</div>`
+    + issueCard({ label: '확인 필요', color: 'red', title: '시급이 2026년 최저임금보다 낮아요', compare: `<div class="cmp"><div><small>계약서 시급</small><b>10,000원</b></div><b>&lt;</b><div><small>2026년 최저임금</small><b>10,320원</b></div></div>`, text: '시간당 320원, 주 20시간이면 한 달 약 27,800원 적게 받아요.', law: '최저임금법 제6조 · 계산은 규칙으로 확인했어요', target: 'S09_조항상세_기본' })
+    + issueCard({ label: '확인 필요', color: 'red', title: '"1년 안에 퇴사하면 교육비 30만 원 반환"', text: '미리 정한 위약금이나 손해배상은 금지돼 있어서, 법에 어긋날 수 있어요.', law: '근로기준법 제20조 (위약 예정의 금지) · AI 해석', target: 'S09_조항상세_기본', arrow: 'm' })
+    + `<div class="card"><div class="h2">빠진 항목 ${tag('2', 'amb')}</div><div class="li"><span style="flex:1"><b>휴일</b><br><span class="mut">주휴일을 꼭 적어야 해요 · 근로기준법 제17조</span></span></div><div class="li"><span style="flex:1"><b>연차유급휴가</b><br><span class="mut">필수 기재사항이에요 · 근로기준법 제17조</span></span></div></div>`
+    + `<div class="card" style="padding:6px 16px"><div class="h2" style="margin-top:10px">전체 조항 8</div>${clause('제1조', '계약 기간', ok)}${clause('제2조', '근무 장소·업무', ok)}${clause('제3조', '근로시간·휴게', ok)}${clause('제4조', '임금', tag('확인 필요', 'red', 'warn'))}${clause('제5조', '사회보험', ok)}${clause('제6조', '계약서 교부', ok)}${clause('제7조', '교육비 반환', tag('확인 필요', 'red', 'warn'))}${clause('제8조', '근무 시간 변경', ok)}</div>`
+    + `<div class="card"><div class="h2">서명 전에 물어볼 것</div>${['"시급을 최저임금 이상으로 고쳐 주실 수 있나요?"', '"주휴일과 연차 규정을 계약서에 넣어 주세요."', '"교육비 반환 조항은 빼 주실 수 있나요?"'].map(q => `<div class="quote" style="margin-top:6px"><span>${q}</span><span${act('문구를 복사해서 문자·메신저에 붙여 넣어요.')}>${icon('copy', 16)}</span></div>`).join('')}</div>`
+    + `<div class="card"><div class="h2">찾은 날짜 4개</div><div class="mut">첫 출근 12.01 · 최저임금 변경 1.01 · 첫 급여일 1.10 · 계약 종료 2.28<br>다음 화면에서 골라 저장해요</div></div>` + disclaimer,
+    footer(button('일정 확인하고 저장', 'S13_일정등록_신규', 'p', 'm')));
+}
+
+function partialResultScreen() {
+  return screen(header('분석 결과', { back: 'S01_홈_기본', ai: 'S10_챗봇_내문서답변' }),
+    resultTop('카페 알바 근로계약서', '근로계약서 · A 깊게 점검 · 2026.11.12 분석', '1쪽은 모두 읽었고, 2쪽은 일부만 읽었어요')
+    + `<div class="warnb">${icon('warn', 18)}<span style="flex:1"><b>2쪽 일부를 읽지 못했어요</b><br>읽은 부분만 결과에 넣었어요. 못 읽은 칸은 0이나 '없음'이 아니라 '확인 필요'로 표시해요.</span></div>`
+    + `<div class="row">${button('2쪽 다시 찍기', 'S03_촬영_카메라', 'l', 'e')}${button('휴일 직접 입력', '', 'l', '', '못 읽은 칸(휴일)을 직접 입력해요. 입력한 값은 직접 입력으로 표시돼요.')}</div>`
+    + `<div class="card"><div class="h2">주요 조건</div><div class="cg">${condition('임금', '시급 10,000원', 'warn')}${condition('근로시간', '주 20시간')}${condition('기간', '26.12.01 ~ 27.02.28')}${condition('휴일', '2쪽 흐림', 'unk')}</div></div>`
+    + issueCard({ label: '확인 필요', color: 'red', title: '시급이 2026년 최저임금보다 낮아요', text: '계약서 시급 10,000원 < 최저임금 10,320원', law: '최저임금법 제6조', target: 'S09_조항상세_기본' }) + disclaimer,
+    footer(button('일정 확인하고 저장', 'S13_일정등록_신규')));
+}
+
+function leaseResultScreen() {
+  return screen(header('분석 결과', { back: 'S01_홈_기본', ai: 'S10_챗봇_근거부족' }),
+    resultTop('역삼동 원룸 월세 계약서', '임대차계약서 · A 깊게 점검 · 2026.11.12 분석', '3쪽 모두 읽었어요 · 직접 가린 5곳은 읽지 않았어요')
+    + `<div class="card"><div class="h2">주요 조건</div><div class="cg">${condition('보증금', '1,000만 원')}${condition('월세', '58만 원')}${condition('관리비', '7만 원 · 포함 항목 없음', 'miss')}${condition('기간', '26.12.01 ~ 28.11.30')}${condition('특약', '3개', 'warn')}${condition('임대인', '가려서 읽지 않음')}</div></div>`
+    + `<div class="cnt">${tag('확인 필요 1', 'red', 'warn')}${tag('기한 1', 'blu')}${tag('전체 조항 11', 'gry')}</div>`
+    + issueCard({ label: '확인 필요', color: 'red', title: '"퇴실 시 도배·장판 비용은 전액 임차인 부담"', text: '평소 쓰면서 생긴 마모까지 부담하게 될 수 있어요.', law: '민법 제654조·제615조 (원상회복) · AI 해석', target: 'S09_조항상세_기본' })
+    + `<div class="card"><div class="h2">${tag('기한', 'blu')} 임대차 신고 대상이에요</div><div class="mut">월세 30만 원을 넘어서 계약일로부터 30일 안에 신고해야 해요 · 부동산 거래신고 등에 관한 법률</div></div>`
+    + `<div class="card"><div class="h2">이 계약서만으로는 알 수 없어요</div><div class="mut">임대인이 등기부등본의 소유자와 같은지, 근저당이 있는지는 등기부등본에서 확인해 보세요.</div></div>` + disclaimer,
+    footer(button('일정 확인하고 저장', 'S13_일정등록_신규')));
+}
+
+// ----- S09 조항 상세 -----
+function clauseDetailScreen() {
+  return screen(header('조항 상세', { back: 'S08_분석결과_정상', backArrow: 'e', ai: 'S10_챗봇_조항맥락', aiArrow: 'c' }),
+    `<a class="act" style="justify-content:flex-start;gap:6px"${go('S10_챗봇_내문서답변', 'c', '대화로 돌아가기')}>${icon('back', 14)} AI 대화로 돌아가기 <span class="mut" style="font-weight:400;margin-left:auto">챗봇에서 열었을 때만</span></a>`
+    + `<div class="row">${tag('확인 필요', 'red', 'warn')}<b>제7조 교육비 반환</b><span class="mut" style="margin-left:auto">카페 알바 근로계약서</span></div>`
+    + `<div class="card"><div class="h2">원문</div><div class="row" style="align-items:flex-start"><div class="orig" style="flex:1"><mark>근로자가 계약일로부터 1년 이내에 퇴사하는 경우 교육비 30만 원을 사업주에게 반환한다.</mark></div>`
+    + `<div class="minipage"><div class="ln"></div><div class="ln"></div><div class="ln hl"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><span style="font-size:10px;color:var(--muted)">2쪽</span></div></div><div class="mut" style="margin-top:6px">위치: 2쪽 특약 사항 첫 줄</div></div>`
+    + `<div class="card"><div class="h2">쉬운 설명</div>1년이 되기 전에 그만두면 교육비 30만 원을 돌려줘야 한다는 약속이에요.</div>`
+    + `<div class="card"><div class="h2">왜 확인이 필요해요</div>근로계약을 지키지 않을 때 낼 돈을 미리 정해 두는 건 법으로 금지돼 있어요. 실제 교육이 어떤 성격인지에 따라 판단이 달라질 수 있어요.</div>`
+    + `<div class="card"><div class="h2">${mascot(4, 26)} 근거 법령</div><div class="lawbox"><b>근로기준법 제20조 (위약 예정의 금지)</b><br>사용자는 근로계약 불이행에 대한 위약금 또는 손해배상액을 예정하는 계약을 체결하지 못한다.</div><div class="srcbox"><span>출처 · 국가법령정보센터 · 2026.11.12 기준 시행 법령</span>${button('법령 원문 보기 ↗', '', 'l', '', '국가법령정보센터(law.go.kr)의 근로기준법 제20조 원문이 열려요 (앱 밖).')}</div><div class="warnline">${icon('info', 14)} 위 설명은 AI가 법령을 해석한 거예요. AI도 실수할 수 있으니 원문 법령을 함께 확인해 주세요.</div></div>`
+    + `<div class="card"><div class="h2">상대방에게 확인할 것</div><div class="quote"><span>"교육비 반환 조항은 빼 주실 수 있나요?"</span><span${act('문구를 복사해서 문자·메신저에 붙여 넣어요.')}>${icon('copy', 16)}</span></div></div>`,
+    footer(button('분석 결과로', 'S08_분석결과_정상', 'l')));
+}
+
+// ----- S11·S12 비교 -----
+const versionCard = (label, version, name, meta, color) =>
+  `<div class="vcard"><span class="vbadge t-${color}">${version}</span><span style="flex:1"><span class="mut">${label}</span><br><b>${name}</b><br><span class="mut">${meta}</span></span></div>`;
+function compareSetupScreen() {
+  return screen(header('수정본 비교', { back: 'S08_비슷한문서확인', ai: 'S10_챗봇_처음열기_일반' }),
+    say(5, '두 계약서를 비교할게요. <b>이전본과 수정본</b>이 맞는지 확인해 주세요.', 44)
+    + versionCard('이전본', 'v1', '역삼동 원룸 월세 계약서', '11.05 분석 · 내 계약서 · 2쪽', 'gry')
+    + `<a class="chip" style="align-self:center"${act('이전본과 수정본 자리를 바꿔요.')}>${icon('swap', 16)} 순서 바꾸기</a>`
+    + versionCard('수정본', 'v2', '역삼동 원룸 월세 계약서 (수정)', '오늘 분석 · 방금 올린 계약서 · 3쪽', 'blu')
+    + `<div class="note">${icon('lock', 14)} 두 문서 모두 가린 이미지로 비교해요. 가린 곳은 비교하지 않아요.</div>`
+    + `<div class="row" style="gap:6px"><a class="chip"${go('S11_비교준비_일부만가능', 'e', '쪽 수 다름')}>(쪽 수가 다를 때 화면)</a><a class="chip"${go('S11_비교준비_비교불가', 'e', '종류 다름')}>(종류가 다를 때 화면)</a></div>`,
+    footer(button('취소', 'S08_분석결과_임대차', 'l'), button('비교하기', 'S12_비교결과_기본', 'p', 'm')));
+}
+
+const changeItem = (kind, color, label, before, after, note) =>
+  `<div class="chg"><div class="row">${tag(kind, color)}<b>${label}</b></div><div class="bf"><small>이전 v1</small><span>${before}</span></div><div class="af"><small>수정 v2</small><b>${after}</b></div>${note ? `<div class="mut">${note}</div>` : ''}</div>`;
+// state: base(읽지 못한 칸 있음) / filled(그 칸을 사용자가 직접 입력함)
+function compareResultScreen(state = 'base') {
+  const filled = state === 'filled';
+  const unread = filled
+    ? changeItem('직접 입력', 'gry', '제5조 관리비 포함 항목', '"관리비에는 인터넷 요금이 포함된다."', '"관리비에는 인터넷·수도 요금이 포함된다."', '내가 직접 입력한 내용이에요. 원문 글자를 다시 읽은 결과는 아니에요.')
+    : `<div class="card" style="background:#FFFBF2"><div class="h2">${icon('warn', 16)} 비교하지 못한 곳 1</div>`
+      + `<div class="mut"><b style="color:var(--ink)">수정본 2쪽 아래 칸 (제5조 관리비)</b><br>글자가 흐려서 읽지 못했어요. 삭제된 조항으로 보지 않아요. 확정하기 전에 확인해 주세요.</div>`
+      + `<div class="row" style="margin-top:10px">${button('그 쪽 다시 찍기', 'S03_촬영_카메라', 'l', 'e')}${button('직접 입력', 'S12_비교결과_직접입력', 'l', 'e')}</div>`
+      + `<div class="mut" style="margin-top:8px">그대로 확정하면 이 칸은 '비교 못 함'으로 남아요. 직접 가린 곳(이름·연락처 등)은 원래 비교하지 않아요.</div></div>`;
+  return screen(header('비교 결과', { back: 'S11_비교준비_기본', ai: 'S10_챗봇_비교결과질문', aiArrow: filled ? '' : 'c' }),
+    `<div class="row"><span class="tag t-gry">v1 11.05</span>${icon('chev', 14)}<span class="tag t-blu">v2 오늘</span><b style="margin-left:auto">역삼동 원룸 월세 계약서</b></div>`
+    + `<div class="cnt">${tag(filled ? '바뀐 곳 3' : '바뀐 곳 2', 'blu')}${tag('추가 1', 'grn')}${filled ? tag('직접 입력 1', 'gry') : tag('비교 못 한 곳 1', 'amb', 'warn')}</div>`
+    + changeItem('금액', 'blu', '월세', '월 55만 원', '월 58만 원', '매달 3만 원, 2년이면 72만 원 늘어요')
+    + changeItem('날짜', 'blu', '계약 기간', '2026.11.20 ~ 2028.11.19', '2026.12.01 ~ 2028.11.30', '입주·전입신고 날짜와 계약 종료일이 바뀌어요')
+    + changeItem('추가', 'grn', '특약 3', '(없음)', '"반려동물을 키울 수 없다."', '새로 생긴 의무예요')
+    + unread
+    + `<div class="mut">그대로인 곳: 보증금 1,000만 원 · 관리비 7만 원 · 특약 1~2</div>`,
+    footer(button('확정하지 않기', 'S12_비교결과_확정안함', 'l', filled ? '' : 'e'), button('수정본으로 확정', 'S13_일정등록_변경등록', 'p', filled ? '' : 'm')));
+}
+
+function unreadInputSheet() {
+  return sheet(`<div class="grab"></div><div class="sh-t"><b>읽지 못한 칸 직접 입력</b><a class="x"${go('S12_비교결과_기본')}>${icon('x', 22)}</a></div>`
+    + `<div style="padding:0 16px;display:flex;flex-direction:column;gap:10px"><div class="mut">수정본 2쪽 아래 칸 · 제5조 관리비</div>`
+    + `<div class="chg"><div class="bf"><small>이전 v1 (읽음)</small><span>관리비에는 인터넷 요금이 포함된다.</span></div>`
+    + `<div class="af" style="background:#fff;border:1.5px solid #2458D6"${act('종이에 적힌 문장을 그대로 입력해요.')}><small>수정 v2 · 종이에 적힌 대로 입력</small><b>관리비에는 인터넷·수도 요금이 포함된다.</b></div></div>`
+    + `<div class="note">${icon('info', 14)} 입력한 내용은 '직접 입력'으로 표시해요. AI가 원문을 읽은 것처럼 다루지 않아요.</div>`
+    + `<div class="note">${icon('camera', 14)} 글자를 알아보기 어렵다면 그 쪽을 다시 찍는 게 더 정확해요.</div>`
+    + `<div class="row">${button('취소', 'S12_비교결과_기본', 'l')}${button('비교에 넣기', 'S12_비교결과_입력반영', 'p', 'm')}</div></div>`);
+}
+
+// ----- S13 일정 -----
+const sourceTag = { written: tag('계약서에 적힘', 'blu'), typed: tag('직접 입력', 'gry'), review: tag('조건 검토 필요', 'amb') };
+const scheduleChoice = (checked, title, date, source, where) =>
+  `<div class="srow"><span class="cb ${checked ? 'on' : ''}"${act('저장할 일정을 고르고 빼요.')}>${checked ? icon('check', 14) : ''}</span><span style="flex:1"><b>${title}</b><br><span class="dt2">${date}</span> ${sourceTag[source]}<br><span class="mut">${where}</span></span><a class="mut"${act('날짜를 직접 고쳐요. 고친 날짜는 직접 입력으로 표시돼요.')}>수정</a></div>`;
+function scheduleNewScreen(conflict) {
+  const rows = conflict
+    ? `<div class="card"><div class="h2">${icon('warn', 16)} 계약 종료일이 두 곳에 달라요</div>`
+      + `<div class="srow"${act('이 날짜로 정해요. 하나만 고를 수 있어요.')}><span class="cb on">${icon('check', 14)}</span><span style="flex:1"><span class="dt2">2027.02.28 (일)</span> ${sourceTag.written}<br><span class="mut">1쪽 제1조</span></span></div>`
+      + `<div class="srow" style="border:0"${act('이 날짜로 정해요. 하나만 고를 수 있어요.')}><span class="cb"></span><span style="flex:1"><span class="dt2">2027.03.31 (수)</span> ${sourceTag.written}<br><span class="mut">2쪽 특약</span></span></div>`
+      + `<div class="mut">어느 날짜가 맞는지 상대방에게 확인해 보세요. 앱이 임의로 고르지 않아요.</div></div>`
+      + `<div class="card"><div class="h2">갱신 통보 기한이 계약서에 없어요</div><div class="mut" style="margin-bottom:8px">직접 입력하거나 비워 둘 수 있어요. 기한을 임의로 계산하지 않아요.</div>${button('직접 입력', '', 'l', '', '날짜 입력 칸이 열려요. 비워 두고 저장해도 돼요.')}</div>`
+    : `<div class="card" style="padding:4px 16px">`
+      + scheduleChoice(true, '첫 출근 (계약 시작일)', '2026.12.01 (화)', 'written', '1쪽 제1조 · 원문 보기')
+      + scheduleChoice(true, '최저임금 변경', '2027.01.01 (금)', 'review', '2027년 최저임금 고시 기준 · 시급 다시 확인')
+      + scheduleChoice(true, '첫 급여일', '2027.01.10 (일)', 'written', '1쪽 제4조 · 원문 보기')
+      + scheduleChoice(false, '계약 종료', '2027.02.28 (일)', 'written', '1쪽 제1조 · 원문 보기')
+      + `<a class="li"${go('S13_일정등록_날짜누락충돌', 'e', '날짜가 다를 때')}>${icon('plus', 18)}<span style="flex:1">일정 직접 추가</span><span class="mut">날짜가 없거나 다를 때</span></a></div>`;
+  return screen(header('일정 확인·등록', { back: 'S08_분석결과_정상', ai: 'S10_챗봇_처음열기_일반' }),
+    `<div class="row">${icon('doc', 18)}<b>카페 알바 근로계약서</b></div>`
+    + say(1, '계약서에서 찾은 날짜예요. <b>맞는지 확인하고</b> 저장할 일정을 골라 주세요.', 40)
+    + rows
+    + `<div class="note">${icon('bell', 14)} 저장한 일정은 내 일정에서 보여 드려요. 휴대폰 알림은 아직 준비 중이에요.</div>`
+    + `<div class="infob">${icon('files', 18)}<span>저장하면 이 계약서가 <b>내 계약서</b>에 함께 보관돼요.</span></div>`,
+    footer(button('일정 없이 보관', 'S15_내계약서_목록', 'l', conflict ? '' : 'e'), button(conflict ? '저장' : '선택한 3개 저장', conflict ? 'S13_일정등록_저장실패' : 'S14_내일정_목록', 'p', conflict ? 'e' : 'm')));
+}
+
+function scheduleChangeScreen() {
+  const change = (title, before, after, source) => `<div class="crow"><b>${title}</b><div class="ba"><s>${before}</s>${icon('chev', 14)}<b>${after}</b></div>${source}</div>`;
+  return screen(header('바뀐 일정 확인', { back: 'S12_비교결과_기본', ai: 'S10_챗봇_비교결과질문' }),
+    `<div class="row">${icon('doc', 18)}<b>역삼동 원룸 월세 계약서</b>${tag('v1 → v2', 'blu')}</div>`
+    + say(5, '수정본(v2)에 맞춰 <b>일정을 바꿔서 등록</b>할까요?', 40)
+    + `<div class="card" style="padding:4px 16px">${change('입주·전입신고', '2026.11.20', '2026.12.01', sourceTag.written)}${change('계약 종료', '2028.11.19', '2028.11.30', sourceTag.written)}${change('임대차 변경 신고', '-', '2026.12.12', sourceTag.review + ' <span class="mut">변경 계약일 + 30일</span>')}</div>`
+    + `<div class="infob">${icon('files', 18)}<span>저장하면 내 계약서에 <b>v2</b>로 보관돼요. v1은 이전 버전으로 함께 남아요.</span></div>`,
+    footer(button('취소', 'S12_비교결과_기본', 'l', 'e'), button('바꿔서 저장', 'S15_내계약서_목록', 'p', 'm')));
+}
+
+// ----- S14 내 일정 -----
+const scheduleEntry = (day, weekday, title, dday, color, doc, arrow) =>
+  `<a class="er"${go('S14_일정상세', arrow, '일정 선택')}><span class="ed"><b>${day}</b><small>${weekday}</small></span><span style="flex:1"><b>${title}</b> ${tag(dday, color)}<br><span class="mut">${doc}</span></span>${icon('chev', 16)}</a>`;
+const viewSwitch = active => `<div class="seg"><a class="${active === 'list' ? 'on' : ''}"${go('S14_내일정_목록')}>${icon('list', 16)}목록</a><a class="${active === 'cal' ? 'on' : ''}"${go('S14_내일정_달력', active === 'list' ? 'e' : '', '달력')}>${icon('cal', 16)}달력</a></div>`;
+
+function scheduleListScreen() {
+  return screen(header('내 일정', { back: false, ai: 'S10_챗봇_처음열기_일반' }),
+    viewSwitch('list')
+    + `<div class="mh">2026년 11월</div><div class="card" style="padding:0 16px">${scheduleEntry(20, '금', '입주·전입신고', 'D-8', 'red', '역삼동 원룸 월세 계약서', 'm')}</div>`
+    + `<div class="mh">12월</div><div class="card" style="padding:0 16px">${scheduleEntry(1, '화', '첫 출근', 'D-19', 'blu', '카페 알바 근로계약서')}${scheduleEntry(5, '토', '임대차 신고 기한', 'D-23', 'amb', '역삼동 원룸 월세 계약서')}</div>`
+    + `<div class="mh">2027년 1월</div><div class="card" style="padding:0 16px">${scheduleEntry(1, '금', '최저임금 변경', 'D-50', 'gry', '카페 알바 근로계약서 · 시급 다시 확인')}${scheduleEntry(10, '일', '첫 급여일', 'D-59', 'gry', '카페 알바 근로계약서')}</div>`
+    + `<div class="toast">${mascot(6, 30)}<span>일정 3개를 저장하고 계약서를 보관했어요<br><span style="color:#B8BEC7;font-size:11px">저장 직후에만 잠깐 보여요</span></span></div>`,
+    tabBar('내 일정'));
+}
+
+function calendarScreen() {
+  const week = ['일', '월', '화', '수', '목', '금', '토'].map(w => `<span class="w">${w}</span>`).join('');
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = i + 1; // 2026년 11월 1일은 일요일
+    const cls = d === 20 ? 'pick' : d === 12 ? 'today' : '';
+    return `<span class="${cls}"${act('이 날짜를 고르면 아래에 그날 일정이 보여요.')}>${d}${d === 20 ? '<i></i>' : ''}</span>`;
+  }).join('') + '<span></span>'.repeat(5);
+  return screen(header('내 일정', { back: false, ai: 'S10_챗봇_처음열기_일반' }),
+    viewSwitch('cal')
+    + `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><span${act('지난달로 넘겨요.')}>‹</span><b>2026년 11월</b><span${act('다음 달로 넘겨요.')}>›</span></div><div class="calg">${week}${days}</div></div>`
+    + `<div class="mh">11월 20일 (금)</div><div class="card" style="padding:0 16px">${scheduleEntry(20, '금', '입주·전입신고', 'D-8', 'red', '역삼동 원룸 월세 계약서')}</div>`,
+    tabBar('내 일정'));
+}
+
+function scheduleDetailSheet() {
+  return sheet(`<div class="grab"></div><div class="sh-t"><b>일정 상세</b><a class="x"${go('S14_내일정_목록')}>${icon('x', 22)}</a></div>`
+    + `<div style="padding:0 16px;display:flex;flex-direction:column;gap:12px"><div><b style="font-size:19px">입주·전입신고</b> ${tag('D-8', 'red')}<div class="dt2" style="margin-top:4px">2026.11.20 (금)</div>${sourceTag.written} <span class="mut">계약 시작일 · 1쪽 제2조</span></div>`
+    + `<a class="card row"${go('S15_내계약서_문서상세', 'm', '연결된 계약서')}>${icon('doc', 20)}<span style="flex:1"><b>역삼동 원룸 월세 계약서</b><br><span class="mut">연결된 계약서 · 11.05 분석</span></span>${icon('chev', 16)}</a>`
+    + `<div class="row">${button('날짜 수정', '', 'l', '', '날짜를 고쳐요. 수정 범위는 팀 협의가 필요해요.')}${button('삭제', '', 'l', '', '일정만 지우고 계약서는 내 계약서에 남아요. 삭제 범위는 협의가 필요해요.')}</div>`
+    + `<div class="note">${icon('bell', 14)} 앱 안에서만 알려 드려요. 휴대폰 알림은 준비 중이에요.</div></div>`, true);
+}
+
+// ----- S15 내 계약서 -----
+const contractCard = (name, versionTag, meta, tags, arrow) =>
+  `<a class="card dc"${go('S15_내계약서_문서상세', arrow, '계약서 선택')}><span class="th">${icon('doc', 22)}</span><span style="flex:1"><b>${name}</b> ${versionTag}<br><span class="mut">${meta}</span><span class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${tags}</span></span>${icon('chev', 16)}</a>`;
+function contractListScreen() {
+  return screen(header('내 계약서', { back: false, ai: 'S10_챗봇_처음열기_일반' }),
+    `<div class="chips"><a class="chip on"${act('전체 계약서를 보여요.')}>전체 3</a><a class="chip"${act('집 관련 계약서만 걸러요.')}>집 2</a><a class="chip"${act('일 관련 계약서만 걸러요.')}>일 1</a></div>`
+    + `<div class="note">${icon('info', 14)} 분석을 마친 계약서가 모여요. 일정이 없어도 보관돼요.</div>`
+    + contractCard('역삼동 원룸 월세 계약서', tag('v2', 'blu'), '임대차 · 11.12 분석 · 이전 버전 v1 (11.05)', tag('확인 필요 1', 'red', 'warn') + tag('일정 3', 'gry'), 'm')
+    + contractCard('카페 알바 근로계약서', '', '근로 · 11.12 분석', tag('확인 필요 2', 'red', 'warn') + tag('빠진 항목 2', 'amb') + tag('일정 3', 'gry'))
+    + contractCard('신림동 원룸 전세 계약서', '', '임대차 · 10.30 분석', tag('짚은 내용 없음', 'gry') + tag('일정 없음', 'gry')),
+    tabBar('내 계약서'));
+}
+
+function contractDetailScreen() {
+  return screen(header('계약서 상세', { back: 'S15_내계약서_목록', ai: 'S10_챗봇_문서바꾸기', aiArrow: 'c' }),
+    `<div class="infob">${icon('info', 18)}<span style="flex:1"><b>11.12 분석 · v2</b><br>분석한 날 기준이에요. 최신 법령으로 다시 검토한 결과가 아니에요.</span><a class="btn l s"${act('이전 버전 v1의 분석 결과를 같은 모양으로 보여줘요.')}>v1 보기</a></div>`
+    + `<div><b style="font-size:21px">역삼동 원룸 월세 계약서</b><div class="mut">임대차계약서 · A 깊게 점검</div></div>`
+    + `<div class="card"><div class="cg">${condition('보증금', '1,000만 원')}${condition('월세', '58만 원')}${condition('기간', '26.12.01 ~ 28.11.30')}${condition('특약', '3개', 'warn')}</div></div>`
+    + `<div class="card"><div class="h2">연결된 일정 3</div>${scheduleRow('D-19', 'blu', '입주·전입신고', '2026.12.01')}${scheduleRow('D-30', 'amb', '임대차 변경 신고', '2026.12.12')}${scheduleRow('2028', 'gry', '계약 종료', '2028.11.30')}</div>`
+    + button('분석 결과 전체 보기', 'S08_분석결과_임대차', 'l')
+    + `<div class="note">${icon('info', 14)} 이 계약서로 질문하려면 위의 AI에게 질문을 눌러요</div>`,
+    tabBar('내 계약서'));
+}
+
+const emptyScreen = (title, tab, face, heading, text) => screen(header(title, { back: false }),
+  `<div class="empty" style="margin-top:120px">${mascot(face, 96)}<b style="font-size:18px">${heading}</b><span class="mut">${text}</span>${button('계약서 등록하기', 'S02_문서선택_기본')}</div>`, tabBar(tab));
+
+function noticeScreen() {
+  const notice = (face, title, text, target) => `<a class="li"${go(target)}>${mascot(face, 36)}<span style="flex:1"><b>${title}</b><br><span class="mut">${text}</span></span>${icon('chev', 16)}</a>`;
+  return screen(header('알림', { back: 'S01_홈_기본' }),
+    `<div class="card" style="padding:4px 16px">${notice(5, 'D-8 · 입주·전입신고가 다가와요', '역삼동 원룸 월세 계약서', 'S14_일정상세')}${notice(6, '분석이 끝났어요', '카페 알바 근로계약서 · 확인 필요 2', 'S08_분석결과_정상')}</div>`
+    + `<div class="note">${icon('bell', 14)} 앱을 열면 이곳에 모아 보여 드려요. 휴대폰 푸시 알림은 준비 중이에요.</div>`);
+}
+
+function splashScreen() {
+  return `<a class="spl"${go('S01_홈_기본', 'm', '약 1초 후 자동')}>${mascot(2, 130)}<b>문서AI</b><span class="mut">집과 일, 처음 받는 문서 길잡이</span><span class="dots"><i></i><i></i><i></i></span></a>`;
+}
+
+function commonPartsBoard() {
+  const faces = [[1, '기본 · 헤더 버튼·답변'], [2, '반가움 · 스플래시·홈'], [3, '생각 중 · 분석·답변 중'], [4, '돋보기 · 검색·근거'], [5, '짚어줌 · 확인 필요·비슷한 문서'], [6, '완료 · 저장·보관'], [7, '가리기 · S05'], [8, '쉬는 중 · 빈 상태'], [9, '미안 · 실패']];
+  return `<div class="scr" style="background:#fff"><div class="bd" style="gap:14px">
+    <b style="font-size:18px">헤더 (모든 서비스 화면)</b>${header('', { home: true })}${header('분석 결과', { back: 'S01_홈_기본' })}
+    <div class="mut">← 뒤로 / 화면 이름 / 종 아이콘 알림 / AI에게 질문(캐릭터). 질문하는 입구는 이 버튼 하나예요. 휴대폰 기본 카메라·파일 선택 화면에는 헤더가 없어요.</div>
+    <b style="font-size:18px">하단 탭</b>${tabBar('홈')}
+    <b style="font-size:18px">캐릭터 9종 · 상태 표시용, 기능 아님</b>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${faces.map(([n, t]) => `<div style="text-align:center;font-size:11px;color:var(--muted)">${mascot(n, 56)}<br>${n} ${t}</div>`).join('')}</div>
+    <b style="font-size:18px">상태 표시 (글자 + 아이콘, 색만 쓰지 않음)</b>
+    <div class="chips">${tag('확인 필요', 'red', 'warn')}${tag('빠진 항목', 'amb')}${tag('A 깊게 점검', 'grn')}${tag('B 공통 점검', 'amb')}${sourceTag.written}${sourceTag.typed}${sourceTag.review}${tag('예시', 'gry')}</div>
+    <div class="mut">"안전한 계약" 같은 단정 표현은 쓰지 않아요. 문제가 안 보이면 "짚은 내용 없음".</div></div></div>`;
+}
+
+// ============================================================
+// 4. 보드 등록: 화면 + 메모(들어오는 곳·버튼·뒤로·챗봇·캐릭터·협의·PoC)
+// ============================================================
+const BOARDS = {};
+function addBoard(id, html, memo, fixed = false) { BOARDS[id] = { id, html, memo, fixed }; }
+
+// 1-1 공통·시작
+addBoard('C01_공통요소', commonPartsBoard(), { in: '설명용 보드', scroll: '모든 화면 공통: 헤더·하단 버튼(탭)은 고정, 본문만 스크롤 · 챗봇 패널은 대화 영역만 스크롤하고 입력창·추천 질문은 고정 · 보드의 빨간 점선 = 첫 화면 끝', btn: '헤더·탭·캐릭터·상태 표시 규칙', deal: '알림 방식(푸시)은 개발 중 결정' });
+addBoard('S00_스플래시', splashScreen(), { in: '앱 실행', btn: '약 1초 뒤 자동으로 S01 홈', char: '2 반가움', chat: '없음 (서비스 화면 전)' }, true);
+addBoard('P01_알림패널', noticeScreen(), { in: '모든 화면 헤더 🔔', btn: '알림 → 해당 일정 상세·분석 결과', back: 'S01 홈', deal: '알림 방식 미정 → 앱 안 목록만. "알림 설정 완료" 표시 안 함', char: '5 짚어줌 · 6 완료' });
+
+// 1-2 S10 챗봇
+const chat = (id, base, panel, memo) => addBoard(id, layered(base, panel), memo, true);
+chat('S10_챗봇_처음열기_일반', homeScreen(), chatPanel({
+  close: 'S01_홈_기본', context: '지금 화면: 홈',
+  messages: [{ ai: '안녕하세요! 계약서 내용, 법률 용어, 앱 사용법을 물어보세요.<br><b>계약서를 올리지 않아도</b> 질문할 수 있어요.', refs: ['앱 사용법'] }],
+  chips: [[SUGGESTED.S01[0]], [SUGGESTED.S01[1]], [SUGGESTED.S01[2], 'S10_챗봇_답변_사용법', 'c']],
+}), { in: 'S01 홈 헤더 AI에게 질문 (모든 화면 같은 버튼)', btn: '추천 질문 → 답변 / 닫기 → 열기 전 화면', chat: `S01 추천: ${suggested('S01')}`, char: '1 기본', deal: '연결 문서 없음 = 일반 질문 상태로 시작' });
+
+chat('S10_챗봇_답변_사용법', homeScreen(), chatPanel({
+  close: 'S01_홈_기본', context: '지금 화면: 홈',
+  messages: [{ me: '어떤 서류를 올리면 돼?' }, {
+    ai: '지금 어떤 상황인지에 따라 달라요. 알바·취업을 앞두고 있다면 <b>근로계약서</b>, 집을 구하는 중이라면 <b>임대차계약서</b>부터 확인해 보세요.', refs: ['앱 사용법', '현재 화면'],
+    acts: [['근로계약서 선택하기', 'S03_입력방식_선택', 'm'], ['임대차계약서 선택하기', 'S03_입력방식_선택'], ['다른 문서 둘러보기', 'S02_문서선택_기본']],
+  }],
+  chips: SUGGESTED.S02,
+}), { in: '추천 질문 "어떤 서류를 올리면 돼?"', btn: '답변 속 이동 버튼 → S03 / S02 (누를 때만 이동)', chat: '문서 없이 답함 · 업로드를 질문 조건으로 요구하지 않음', char: '1 기본', deal: '이동으로 작업이 사라질 수 있으면 먼저 확인창 (S10_챗봇_이동확인)' });
+
+chat('S10_챗봇_가리기중', maskingScreen(), chatPanel({
+  close: 'S05_가리기_직접가리기', context: '지금 화면: 개인정보 가리기 · 가리기 전 원본은 챗봇에 보내지 않아요',
+  messages: [{ me: '주소도 가려야 해?' }, {
+    ai: '주소는 나를 알아볼 수 있는 정보라 가리는 걸 권해요. 다만 <b>근무 장소</b>는 점검에 필요할 수 있으니 내 집 주소만 가려 주세요.', refs: ['현재 화면', '앱 사용법'],
+    acts: [['가린 곳 목록 보기', 'S05_가리기_가린곳목록'], ['계약서 종류 다시 고르기', 'S10_챗봇_이동확인', 'e']],
+  }],
+  chips: SUGGESTED.S05,
+}), { in: 'S05 헤더 AI에게 질문', btn: '닫기 → S05 (가린 영역·편집 상태 그대로)', chat: `S05 추천: ${suggested('S05')}`, char: '1 기본', deal: '이미지 내용은 보지 않고 사용법만 답함' });
+
+addBoard('S10_챗봇_이동확인', layered(maskingScreen(), chatPanel({
+  close: 'S05_가리기_직접가리기', context: '지금 화면: 개인정보 가리기', messages: [{ me: '주소도 가려야 해?' }, { ai: '주소는 가리는 걸 권해요. 근무 장소는 남겨 두세요.' }], chips: [],
+}), dialog({ face: 5, title: '가리던 내용이 사라질 수 있어요', text: '계약서 등록 화면으로 가면 지금 가린 내용이 저장되지 않아요.', buttons: [button('계속 대화하기', 'S10_챗봇_가리기중', 'l', 'e'), button('이동하기', 'S02_문서선택_기본')] })),
+{ in: '챗봇 답변의 이동 버튼', btn: '계속 대화하기 → 대화 유지 / 이동하기 → S02', char: '5 짚어줌', deal: '대화만으로 문서를 보내거나 일정을 저장하지 않음' }, true);
+
+chat('S10_챗봇_분석중', analyzingScreen(), chatPanel({
+  close: 'S07_분석중_진행', context: '지금 화면: 분석 중 · 카페 알바 근로계약서 (아직 분석 전이에요)',
+  messages: [{ me: '내 계약 문제없어?' }, {
+    face: 3, ai: '아직 분석이 끝나지 않아서 계약 내용으로는 답할 수 없어요. 끝나면 확인할 조항을 짚어 드릴게요.<br>그동안 근로계약서에서 보통 확인하는 항목을 알려 드릴까요?', refs: ['앱 사용법'],
+  }],
+  chips: SUGGESTED.S07,
+}), { in: 'S07 헤더 AI에게 질문', btn: '닫기 → S07 (분석 계속)', chat: `S07 추천: ${suggested('S07')}`, char: '3 생각 중', deal: '분석 중 이탈·복원은 개발에서 검증' });
+
+chat('S10_챗봇_분석완료안내', analyzingScreen(), chatPanel({
+  close: 'S07_분석중_진행', context: '지금 화면: 분석 중',
+  banner: `<div class="banner">${icon('check', 16)}분석이 완료됐어요<a${go('S08_분석결과_정상', 'm', '결과 보기')}>결과 보기</a></div>`,
+  messages: [{ me: '계약서에서 특약이 무슨 뜻이야?' }, { ai: '특약은 표준 내용 말고 <b>두 사람이 따로 정한 약속</b>이에요. 일반 조항보다 나에게 불리한 내용이 들어가기 쉬워서 꼭 읽어 보세요.', refs: ['법령 DB'] }],
+  chips: SUGGESTED.S07,
+}), { in: '대화 중 분석 완료', btn: '결과 보기 → S08 (누를 때만 이동)', chat: '대화를 강제로 닫거나 화면을 자동 전환하지 않음', char: '1 기본' });
+
+chat('S10_챗봇_내문서답변', workResultScreen(), chatPanel({
+  close: 'S08_분석결과_정상', linkedDoc: '카페 알바 근로계약서 (11.12 분석)', context: '지금 화면: 분석 결과',
+  messages: [{ me: '이 계약에서 먼저 확인할 내용은 뭐야?' }, {
+    ai: '두 가지를 먼저 보세요.<br>① 시급 10,000원이 2026년 최저임금 10,320원보다 낮아요 (1쪽 제4조).<br>② 1년 안에 퇴사하면 교육비 30만 원을 돌려줘야 한다는 조항(2쪽 제7조)은 법에 어긋날 수 있어요.', refs: ['내 문서', '법령 DB', '현재 화면'],
+    acts: [['근거 조항 보기 (제7조)', 'S09_조항상세_기본', 'm'], ['일정 등록 화면으로', 'S13_일정등록_신규']],
+  }],
+  chips: SUGGESTED.S08,
+}), { in: 'S08 헤더 AI에게 질문 / S09에서 대화로 돌아가기', btn: '근거 조항 보기 → S09 / 닫기 → S08 읽던 위치', chat: `S08 추천: ${suggested('S08')}`, char: '1 기본', deal: '결과에서 열면 그 계약서가 자동 연결, 문서명 표시' });
+
+chat('S10_챗봇_조항맥락', clauseDetailScreen(), chatPanel({
+  close: 'S09_조항상세_기본', linkedDoc: '카페 알바 근로계약서', context: '보고 있는 조항: 제7조 교육비 반환',
+  messages: [{ me: '왜 주의가 필요해?' }, {
+    ai: '근로기준법 제20조는 근로계약을 지키지 않을 때의 위약금이나 손해배상액을 <b>미리 정하는 것</b>을 금지해요. 이 조항은 퇴사하면 교육비를 돌려주도록 미리 정해 두어서 문제가 될 수 있어요. 다만 교육비의 실제 성격에 따라 판단이 달라질 수 있어요.', refs: ['현재 화면', '내 문서', '법령 DB'],
+  }],
+  chips: SUGGESTED.S09,
+}), { in: 'S09 헤더 AI에게 질문', btn: '닫기 → S09', chat: `S09 추천: ${suggested('S09')}`, char: '1 기본', deal: '조항 옆 "이 조항 질문하기" 버튼은 두지 않음 · 헤더 하나로 현재 화면 맥락 전달' });
+
+chat('S10_챗봇_근거부족', leaseResultScreen(), chatPanel({
+  close: 'S08_분석결과_임대차', linkedDoc: '역삼동 원룸 월세 계약서 (11.12 분석)', context: '지금 화면: 분석 결과',
+  messages: [{ me: '보증금 돌려받을 수 있어?' }, {
+    ai: `${tag('일부만 답할 수 있어요', 'amb')}<br><b>계약서로 확인한 것</b><br>보증금 1,000만 원, 계약 종료 2028.11.30<br><b>확인할 수 없는 것</b><br>집에 근저당이 있는지, 집주인의 다른 빚은 이 계약서만으로 알 수 없어요. 등기부등본에서 소유자와 근저당을 확인해 보세요.`, refs: ['내 문서', '법령 DB'],
+  }],
+  chips: SUGGESTED.S08,
+}), { in: '임대차 결과에서 AI에게 질문 / 문서 바꾸기 후 새 대화', btn: '닫기 → S08 임대차', chat: '근거 부족 시 답할 수 있는 부분과 없는 부분을 나눔', char: '1 기본', deal: '"위법 확정·무조건 안전" 같은 단정 금지' });
+
+chat('S10_챗봇_범위밖', homeScreen(), chatPanel({
+  close: 'S01_홈_기본', context: '지금 화면: 홈',
+  messages: [{ me: '실손보험 약관도 봐줄 수 있어?' }, {
+    ai: '지금은 <b>집과 일에 관한 문서 23종</b>을 도와드려요. 보험 약관은 아직 지원하지 않아요.', refs: ['앱 사용법'],
+    acts: [['지원하는 문서 보기', 'S02_문서선택_기본']],
+  }],
+  chips: ['근로계약서에서 꼭 볼 것은?', '전세와 월세는 뭐가 달라?'],
+}), { in: '어느 화면에서든', btn: '지원하는 문서 보기 → S02', chat: '지원하지 않는 문서를 근로·임대차로 임의 판단하지 않음', char: '1 기본' });
+
+chat('S10_챗봇_문서바꾸기', contractDetailScreen(), chatPanel({
+  close: 'S15_내계약서_문서상세', linkedDoc: '카페 알바 근로계약서',
+  linkNote: `<a class="sw"${go('S10_챗봇_근거부족', 'e', '이 계약서로 질문하기')}>바꾸기</a>`,
+  context: '지금 화면: 역삼동 원룸 월세 계약서 상세 · 대화에 연결된 문서와 달라요',
+  messages: [{ me: '이 조항을 쉬운 말로 설명해 줘.' }, {
+    ai: '지금 대화는 <b>카페 알바 근로계약서</b>에 연결돼 있어요. 보고 계신 역삼동 원룸 월세 계약서로 물어보려면 새 대화를 시작해 주세요.',
+    acts: [['이 계약서로 질문하기', 'S10_챗봇_근거부족', 'm'], ['그대로 계속하기', 'S10_챗봇_내문서답변']],
+  }],
+  chips: SUGGESTED.S15,
+}), { in: '다른 계약서 화면에서 기존 대화 열기', btn: '이 계약서로 질문하기 → 새 문서 대화', chat: `S15 추천: ${suggested('S15')}`, char: '1 기본', deal: '연결 문서를 몰래 바꾸지 않음' });
+
+chat('S10_챗봇_응답실패', homeScreen(), chatPanel({
+  close: 'S01_홈_기본', context: '지금 화면: 홈',
+  messages: [{ me: '수습기간에도 최저임금 다 받아?' }, { face: 9, fail: true, ai: '답변을 받지 못했어요. 작성한 질문은 그대로 있어요.', acts: [['다시 시도', 'S10_챗봇_처음열기_일반']] }],
+  input: '수습기간에도 최저임금 다 받아?',
+}), { in: '응답 실패', btn: '다시 시도 / 질문 수정 / 닫기', chat: '작성한 질문과 대화 유지', char: '9 미안' });
+
+chat('S10_챗봇_비교결과질문', compareResultScreen(), chatPanel({
+  close: 'S12_비교결과_기본', linkedDoc: '역삼동 원룸 월세 계약서 v1 → v2', context: '지금 화면: 비교 결과 · 이전본 v1(11.05) / 수정본 v2(오늘)',
+  messages: [{ me: '내 부담이 달라지는 부분이 있어?' }, {
+    ai: '네. 월세가 55만 원에서 <b>58만 원</b>으로 매달 3만 원 늘어요 (2년이면 72만 원). 반려동물 금지 특약도 새로 생겼어요.<br>수정본 2쪽 아래 칸은 글자가 흐려서 비교하지 못했어요. 그 쪽을 다시 찍거나 직접 입력해 주세요.', refs: ['내 문서', '현재 화면'],
+    acts: [['바뀐 일정 보기', 'S13_일정등록_변경등록']],
+  }],
+  chips: SUGGESTED.S12,
+}), { in: 'S12 헤더 AI에게 질문', btn: '바뀐 일정 보기 → S13 변경 등록', chat: `S12 추천: ${suggested('S12')}`, char: '1 기본', deal: '두 문서와 이전본·수정본 구분을 표시' });
+
+// 1-3 홈 → 문서 선택
+addBoard('S01_홈_기본', homeScreen(), { in: 'S00 스플래시 / 하단 탭 홈', btn: '계약서 촬영·파일 올리기 → S02 / 다가오는 일정 → S14 / 예시로 해보기 → S08 예시', back: '없음 (탭 첫 화면)', chat: `S01 추천: ${suggested('S01')}`, char: '2 반가움 · 4 돋보기', deal: '로그인 화면 없음' });
+addBoard('S01_홈_첫사용', homeScreen(true), { in: '일정·계약서가 없을 때', btn: 'S01 기본과 같음', char: '8 쉬는 중 (빈 일정)' });
+addBoard('S02_문서선택_기본', documentPickerScreen('집'), { in: '하단 탭 계약서 등록 / S01 촬영·업로드', scroll: '문서 목록만 스크롤 · 검색창·집/일 탭은 위에 고정', btn: '문서 선택 → S03 / 검색 → 검색 결과 / 일 10종 탭', back: '없음 (탭 첫 화면)', chat: `S02 추천: ${suggested('S02')}`, poc: 'PoC 구현은 근로계약서·임대차계약서만. 나머지 21종은 PoC 구현 제외' });
+addBoard('S02_문서선택_근로급여', documentPickerScreen('일'), { in: 'S02 일 탭 / S01 일 칩', btn: '문서 선택 → S03', chat: `S02 추천: ${suggested('S02')}`, poc: '근로계약서 외 9종 PoC 구현 제외' });
+addBoard('S02_문서선택_검색결과', searchResultScreen(), { in: 'S02 검색', btn: '문서 선택 → S03', back: 'S02', char: '4 돋보기', poc: '임대차계약서 외 PoC 구현 제외' });
+
+// 1-4 올리기 → 미리보기
+addBoard('S03_입력방식_선택', uploadMethodScreen(), { in: 'S02 문서 선택 / 챗봇 이동 버튼', btn: '카메라로 찍기 → 휴대폰 카메라 / 앨범·파일 → S04 / 아래 ‹ 이전: 종류 → S02 · 다음: 가리기는 올리기 전이라 회색', back: 'S02', chat: `S03 추천: ${suggested('S03')}`, deal: '허용 형식·용량·쪽 수는 개발 확인 (예: JPG·PNG·PDF, 10쪽)' });
+addBoard('S03_권한없음', layered(uploadMethodScreen(), dialog({ face: 9, title: '카메라를 쓸 수 없어요', text: '설정에서 카메라 권한을 켜거나, 앨범·파일에서 골라 주세요.', buttons: [button('설정 열기', '', 'l', '', '휴대폰 설정 앱으로 이동해요 (앱 밖).'), button('앨범·파일에서', 'S04_미리보기_정상', 'p', 'e')] })), { in: '카메라 권한 없음', btn: '앨범·파일 → S04', char: '9 미안' }, true);
+addBoard('S03_촬영_카메라', cameraScreen(), { in: 'S03 카메라로 찍기', btn: '완료 → S04', back: '취소 → S03', chat: '휴대폰 기본 카메라 · 헤더·챗봇 없음' }, true);
+addBoard('S04_미리보기_정상', previewScreen(), { in: '촬영 완료 / 파일 선택', btn: '아래 ‹ 이전: 종류 → S02 · 다음: 가리기 › → S05 / 다시 찍기·쪽 추가 → 카메라 / 위 단계 표시 1 종류 누르면 이동', back: '헤더 ← = 바로 전 화면(S03)', chat: `S04 추천: ${suggested('S04')}`, deal: 'S04~S06은 한 흐름의 단계로 구현해도 됨 (v2)' });
+addBoard('S04_미리보기_가리기후수정', previewScreen('afterMask'), { in: 'S05에서 ‹ 이전: 올리기 / 단계 표시 2 올리기', btn: '다시 찍기·삭제·쪽 추가로 이미 올린 쪽 고치기 / 다음: 가리기 › → S05 (가린 곳 그대로) / 위 3 가리기도 끝낸 단계라 눌림', back: '헤더 ← = 바로 전 화면', deal: '다시 찍거나 바꾼 쪽만 새로 가림 · 나머지 가림은 유지' });
+addBoard('S04_미리보기_흐림누락', previewScreen('blurred'), { in: '흐린 쪽이 있을 때', btn: '다시 찍기 → 카메라 / 다음: 가리기 › → S05 (그대로 진행)', chat: '챗봇은 이미지를 보지 않았으면 "잘 보인다"고 답하지 않음' });
+
+// 1-5 가리기 → 확인
+addBoard('S05_가리기_직접가리기', maskingScreen('select'), { in: 'S04 다음: 가리기', btn: '끌어서 영역 지정 → 손을 떼면 가림 / 이동·확대 / 다음 쪽 / 가린 곳 보기 / 아래 ‹ 이전: 올리기 → S04 · 다음: 확인 › → S06 / 위 단계 표시: 끝낸 1·2 누르면 이동', back: 'S04 (가린 영역 유지)', chat: `S05 추천: ${suggested('S05')} · 원본 전송 안 함`, char: '7 가리기', deal: '자동 탐지 없음, 사용자가 직접 가림' });
+addBoard('S05_가리기_확인후수정', maskingScreen('returned'), { in: 'S06에서 ‹ 이전: 가리기 / 단계 표시의 3 가리기', btn: '단계 표시 4 확인(끝낸 단계라 눌림) → S06 / 다음: 확인 → S06', back: '‹ 이전: 올리기 → S04', char: '1 기본', deal: '가린 곳을 고치면 S06 최종 확인을 다시 받음' });
+addBoard('S05_가리기_가림추가', maskingScreen('added'), { in: '영역을 지정하고 손을 뗌 / S06 가린 곳 고치기', btn: '되돌리기 → 되돌림 / 가린 내용 확인하기 → S06', back: 'S04', char: '6 완료', deal: '방금 가린 칸은 노란 테두리로 잠깐 표시 · 가린 곳 5개' });
+addBoard('S05_가리기_되돌림', maskingScreen('undone'), { in: '가림추가에서 되돌리기 (안내창의 되돌리기도 같음)', btn: '다시 끌어서 가리기', char: '1 기본', deal: '되돌리기는 마지막 가림부터 하나씩 취소' });
+addBoard('S05_가리기_확대', maskingScreen('zoom'), { in: '이동·확대 버튼 / 가린 곳 목록의 보기', btn: '가리기 → 가리기 모드로 돌아감', char: '4 돋보기', deal: '이동·확대 중에는 가려지지 않음 (실수 방지)' });
+addBoard('S05_가리기_가린곳목록', layered(maskingScreen('select'), maskedListSheet(false)), { in: 'S05 가린 곳 보기', btn: '보기 → 그 위치로 확대 / 지우기 → 가림 해제', back: '닫기 → S05' }, true);
+addBoard('S05_가리기_가린곳지움', layered(maskingScreen('select'), maskedListSheet(true)), { in: '가린 곳 목록에서 주소 지우기', btn: '되돌리기 → 목록 (주소 다시 가림)', deal: '지운 곳은 보이는 채로 AI에 보내진다는 경고를 꼭 보여줌' }, true);
+addBoard('S05_가리기_가릴것없음', maskingScreen('page2'), { in: 'S05 다음 쪽 (가릴 정보 없는 쪽)', btn: '가릴 곳 없음, 확인으로 → S06', chat: '가릴 곳을 억지로 만들게 하지 않음', char: '1 기본' });
+addBoard('S06_최종확인_정상', confirmScreen(), { in: 'S05 다음: 확인', btn: '아래 ‹ 이전: 가리기 → S05(확인 단계는 끝낸 상태로 표시) · 분석 요청 › → S07 / 위 단계 표시 1·2·3 누르면 이동', back: '헤더 ← = 바로 전 화면', chat: `S06 추천: ${suggested('S06')}`, deal: '가린 곳을 고치면 최종 확인을 다시 받음' });
+addBoard('S06_최종확인_생성실패', layered(confirmScreen(), dialog({ face: 9, title: '가린 이미지를 만들지 못했어요', text: '원본은 보내지 않았어요. 다시 시도하거나 가린 곳을 확인해 주세요.', buttons: [button('가린 곳 확인', 'S05_가리기_직접가리기', 'l', 'e'), button('다시 시도', 'S07_분석중_진행')] })), { in: '분석 요청 직후 실패', btn: '다시 시도 → S07 / 가린 곳 확인 → S05', char: '9 미안', deal: '원본으로 대신 보내지 않음' }, true);
+
+// 1-6 분석 → 결과
+addBoard('S07_분석중_진행', analyzingScreen(), { in: 'S06 분석 요청', btn: '완료 → S08 (괄호 버튼은 설명용)', back: '없음 (다른 탭으로 가도 분석 계속)', chat: `S07 추천: ${suggested('S07')}`, char: '3 생각 중' });
+addBoard('S07_분석실패', analysisFailedScreen(), { in: '분석 전체 실패', btn: '다시 찍기 → 카메라 / 종류 다시 고르기 → S02 / 다시 시도 → S07', char: '9 미안', deal: '실패한 분석은 내 계약서에 저장하지 않음' });
+addBoard('S08_분석결과_정상', workResultScreen(), { in: 'S07 완료 / 홈 예시 / 알림 / 내 계약서', scroll: '본문 스크롤 · [일정 확인하고 저장]은 아래 고정 · S09에서 돌아오면 읽던 위치 유지', btn: '조항 → S09 / 일정 확인하고 저장 → S13', back: 'S01 홈', chat: `S08 추천: ${suggested('S08')}`, deal: '저장 버튼 없음 (일정 저장·일정 없이 보관 때 자동 보관). 순서: 분석 범위 → 주요 조건 → 우선 확인 → 전체 조항 → 일정' });
+addBoard('S08_분석결과_일부확인필요', partialResultScreen(), { in: '부분 분석', scroll: '본문 스크롤 · 하단 버튼 고정', btn: '2쪽 다시 찍기 / 일정 확인하고 저장 → S13', chat: '분석된 내용과 확인 필요를 구분' });
+addBoard('S08_분석결과_임대차', leaseResultScreen(), { in: '임대차계약서 분석 완료 / 비슷한 문서 아님', scroll: '본문 스크롤 · 하단 버튼 고정', btn: '조항 → S09 / 일정 확인하고 저장 → S13', chat: `S08 추천: ${suggested('S08')}`, deal: '주요 조건: 보증금·월세·관리비·기간·특약' });
+
+// 2-1 조항
+addBoard('S09_조항상세_기본', clauseDetailScreen(), { in: 'S08 조항 / 챗봇 근거 조항 보기', scroll: '본문 스크롤 · 원문이 길면 원문 상자 안에서도 스크롤 · 근거 법령·원문 링크는 아래쪽', btn: '대화로 돌아가기 → S10 (챗봇에서 열었을 때만) / 분석 결과로', back: 'S08 읽던 위치', chat: `S09 추천: ${suggested('S09')}`, char: '4 돋보기', deal: '질문은 헤더 AI에게 질문 하나로' });
+
+// 2-2 일정
+addBoard('S13_일정등록_신규', scheduleNewScreen(false), { in: 'S08 일정 확인하고 저장', scroll: '날짜 목록 스크롤 · 저장 버튼 고정', btn: '선택한 일정 저장 → 캘린더 등록 + 내 계약서 자동 보관 → S14 / 일정 없이 보관 → S15', back: 'S08', chat: `S13 추천: ${suggested('S13')}`, char: '1 기본', deal: '날짜 출처 3종 구분 · 대화만으로 자동 등록하지 않음' });
+addBoard('S13_일정등록_날짜누락충돌', scheduleNewScreen(true), { in: '날짜가 없거나 서로 다를 때', btn: '직접 입력 / 일정 없이 보관 / 저장', deal: '불명확한 기한은 임의로 계산하지 않음' });
+addBoard('S13_일정등록_저장실패', layered(scheduleNewScreen(false), dialog({ face: 9, title: '저장하지 못했어요', text: '입력한 날짜와 분석 결과는 그대로 있어요. 같은 일정이 두 번 저장되지 않게 다시 시도해요.', buttons: [button('닫기', 'S13_일정등록_신규', 'l', 'e'), button('다시 시도', 'S14_내일정_목록')] })), { in: '저장 실패', btn: '다시 시도 → S14', char: '9 미안', deal: '중복 저장 방지' }, true);
+addBoard('S14_내일정_목록', scheduleListScreen(), { in: 'S13 저장 / 하단 탭 내 일정 / 홈 다가오는 일정', scroll: '일정 목록 스크롤 · 목록/달력 전환은 위에 고정', btn: '일정 → 일정 상세 / 달력 보기', back: '없음 (탭 첫 화면)', chat: `S14 추천: ${suggested('S14')}`, char: '6 완료 (저장 직후 안내)' });
+addBoard('S14_일정상세', layered(scheduleListScreen(), scheduleDetailSheet()), { in: '일정 선택 / 알림', btn: '연결된 계약서 → S15 상세', back: '닫기 → S14', deal: '날짜 수정·삭제 범위는 협의 필요 · 외부 캘린더는 개발 중 결정' }, true);
+addBoard('S14_내일정_달력', calendarScreen(), { in: 'S14 달력 보기', btn: '날짜 → 그날 일정 / 일정 → 상세', chat: `S14 추천: ${suggested('S14')}` });
+addBoard('S14_내일정_빈상태', emptyScreen('내 일정', '내 일정', 8, '아직 등록한 일정이 없어요', '계약서를 분석하고 일정을 저장하면 여기 모여요'), { in: '일정 없음', btn: '계약서 등록하기 → S02', char: '8 쉬는 중' });
+
+// 2-3 비교
+addBoard('S08_비슷한문서확인', layered(leaseResultScreen(), dialog({
+  face: 5, title: '비슷한 계약서가 내 계약서에 있어요', text: '방금 분석한 계약서가 아래 계약서와 많이 비슷해요. 같은 계약의 수정본인가요?',
+  extra: `<div class="card row" style="padding:12px">${icon('doc', 20)}<span style="flex:1"><b>역삼동 원룸 월세 계약서</b> ${tag('v1', 'gry')}<br><span class="mut">11.05 분석 · 일정 3개</span></span></div>`,
+  buttons: [button('아니요', 'S08_분석결과_임대차', 'l', 'e'), button('네, 수정본이에요', 'S11_비교준비_기본', 'p', 'm')],
+})), { in: '분석 완료 직후, 내 계약서에 비슷한 계약서가 있을 때', btn: '네 → S11 / 아니요 → 일반 결과', char: '5 짚어줌', deal: 'AI가 먼저 물어보고 사용자가 확인해야 비교 시작' }, true);
+addBoard('S11_비교준비_기본', compareSetupScreen(), { in: '비슷한 문서 확인 "네"', btn: '비교하기 → S12 / 순서 바꾸기', back: '취소 → S08 임대차', chat: `S11 추천: ${suggested('S11')}`, char: '5 짚어줌' });
+addBoard('S11_비교준비_일부만가능', layered(compareSetupScreen(), dialog({ face: 5, title: '일부만 비교할 수 있어요', text: '이전본은 2쪽, 수정본은 3쪽이에요. 짝이 없는 3쪽은 "추가된 내용"으로만 보여 드려요.', buttons: [button('수정본 다시 올리기', 'S03_입력방식_선택', 'l'), button('이대로 비교', 'S12_비교결과_기본')] })), { in: '쪽 수·범위가 다를 때', btn: '이대로 비교 → S12 / 다시 올리기 → S03', deal: '비교 가능한 범위만 안내 후 진행 선택' }, true);
+addBoard('S11_비교준비_비교불가', layered(compareSetupScreen(), dialog({ face: 9, title: '비교할 수 없어요', text: '두 문서의 계약 종류가 달라요 (임대차계약서 · 근로계약서). 같은 계약의 이전본과 수정본만 비교할 수 있어요.', buttons: [button('취소', 'S08_분석결과_임대차', 'l'), button('다른 문서 고르기', 'S15_내계약서_목록')] })), { in: '비교 불가', btn: '취소 → S08 / 다른 문서 고르기', char: '9 미안' }, true);
+addBoard('S12_비교결과_기본', compareResultScreen(), { in: 'S11 비교하기', scroll: '바뀐 곳 목록 스크롤 · 확정/확정하지 않기 버튼 고정', btn: '읽지 못한 칸: 그 쪽 다시 찍기 → 카메라 / 직접 입력 → 입력 패널 · 수정본으로 확정 → S13 변경 등록 / 확정하지 않기', back: 'S11', chat: `S12 추천: ${suggested('S12')}`, deal: '이전·수정을 위아래로 · 가린 곳을 삭제로 확정하지 않음' });
+addBoard('S12_비교결과_직접입력', layered(compareResultScreen(), unreadInputSheet()), { in: 'S12 비교하지 못한 곳의 직접 입력', btn: '비교에 넣기 → 입력반영 / 취소 → S12', deal: '직접 입력 값은 출처를 "직접 입력"으로 표시 · AI가 읽은 값처럼 쓰지 않음' }, true);
+addBoard('S12_비교결과_입력반영', compareResultScreen('filled'), { in: '직접 입력 후 비교에 넣기 / 다시 찍어 재분석한 경우도 같은 모양', btn: '수정본으로 확정 → S13 변경 등록', chat: `S12 추천: ${suggested('S12')}`, deal: '다시 찍으면 S03 → S04 → S05 → S06을 거쳐 다시 비교' });
+addBoard('S12_비교결과_확정안함', layered(compareResultScreen(), dialog({ face: 1, title: '수정본으로 확정하지 않을까요?', text: '기존 v1 계약서와 일정은 그대로 두고, 방금 올린 수정본은 보관하지 않아요.', buttons: [button('돌아가기', 'S12_비교결과_기본', 'l', 'e'), button('확정하지 않기', 'S01_홈_기본')] })), { in: 'S12 확정하지 않기', btn: '확정하지 않기 → 홈 (v1·일정 유지)', char: '1 기본' }, true);
+addBoard('S13_일정등록_변경등록', scheduleChangeScreen(), { in: 'S12 수정본으로 확정', btn: '바꿔서 저장 → 일정 변경 + 내 계약서 v2 보관 → S15', back: '취소 → S12', chat: `S13 추천: ${suggested('S13')}`, char: '5 짚어줌', deal: 'v1을 이전 버전으로 남길지 최종 협의' });
+
+// 2-4 내 계약서
+addBoard('S15_내계약서_목록', contractListScreen(), { in: '하단 탭 내 계약서 / 일정 저장·일정 없이 보관 / v2 저장', scroll: '계약서 목록 스크롤 · 집/일 필터는 위에 고정', btn: '계약서 → 상세', back: '없음 (탭 첫 화면)', chat: `S15 추천: ${suggested('S15')}`, deal: '분석이 끝난 계약서만 · 일정 없는 계약서도 보관' });
+addBoard('S15_내계약서_빈상태', emptyScreen('내 계약서', '내 계약서', 8, '분석한 계약서가 여기 모여요', '계약서를 분석하면 자동으로 보관돼요'), { in: '보관 계약서 없음', btn: '계약서 등록하기 → S02', char: '8 쉬는 중' });
+addBoard('S15_내계약서_문서상세', contractDetailScreen(), { in: 'S15 목록 / 일정 상세 연결된 계약서', scroll: '본문 스크롤', btn: '분석 결과 전체 보기 → S08 / v1 보기', back: 'S15 목록', chat: '이 계약서로 질문 → 헤더 AI에게 질문', deal: '분석 시점·버전 표시, 최신 법령 재검토처럼 보이지 않게' });
+
+// ============================================================
+// 5. 캔버스 배치 (단계 줄) · 클릭 시연 · 완료 기준
+// ============================================================
+const LANES = [
+  { no: '1-1', title: '공통 요소 · 시작', desc: '헤더·하단 탭·캐릭터·알림 · 스플래시에서 홈으로', cols: [['C01_공통요소'], ['S00_스플래시'], ['P01_알림패널']] },
+  { no: '1-2', title: 'S10 AI 챗봇 (모든 화면 공통 패널)', desc: '헤더 AI에게 질문으로 열고, 닫으면 하던 작업으로 돌아가요', cols: [['S10_챗봇_처음열기_일반', 'S10_챗봇_답변_사용법'], ['S10_챗봇_가리기중', 'S10_챗봇_이동확인'], ['S10_챗봇_분석중', 'S10_챗봇_분석완료안내'], ['S10_챗봇_내문서답변', 'S10_챗봇_조항맥락'], ['S10_챗봇_문서바꾸기', 'S10_챗봇_근거부족'], ['S10_챗봇_비교결과질문'], ['S10_챗봇_범위밖', 'S10_챗봇_응답실패']] },
+  { no: '1-3', title: '홈 → 문서 선택', desc: '집 13종 · 일 10종 (PoC는 근로·임대차)', cols: [['S01_홈_기본', 'S01_홈_첫사용'], ['S02_문서선택_기본', 'S02_문서선택_근로급여'], ['S02_문서선택_검색결과']] },
+  { no: '1-4', title: '문서 올리기 → 미리보기', desc: '카메라·앨범·PDF, 쪽 확인', cols: [['S03_입력방식_선택', 'S03_권한없음'], ['S03_촬영_카메라'], ['S04_미리보기_정상', 'S04_미리보기_흐림누락', 'S04_미리보기_가리기후수정']] },
+  { no: '1-5', title: '개인정보 가리기 → 최종 확인', desc: '직접 가리기, 가린 이미지만 전송', cols: [['S05_가리기_직접가리기', 'S05_가리기_확대', 'S05_가리기_가린곳목록', 'S05_가리기_가린곳지움', 'S05_가리기_가릴것없음'], ['S05_가리기_가림추가', 'S05_가리기_되돌림', 'S05_가리기_확인후수정'], ['S06_최종확인_정상', 'S06_최종확인_생성실패']] },
+  { no: '1-6', title: '분석 → 결과', desc: '실패·부분 분석 구분', cols: [['S07_분석중_진행', 'S07_분석실패'], ['S08_분석결과_정상', 'S08_분석결과_일부확인필요'], ['S08_분석결과_임대차']] },
+  { no: '2-1', title: '결과 → 조항 상세', desc: '원문 위치·쉬운 설명·근거 법령', cols: [['S09_조항상세_기본']] },
+  { no: '2-2', title: '일정 저장 → 자동 보관 → 내 일정', desc: '일정 저장 시 캘린더 등록 + 내 계약서 보관 · 일정 없이 보관 가능', cols: [['S13_일정등록_신규', 'S13_일정등록_날짜누락충돌', 'S13_일정등록_저장실패'], ['S14_내일정_목록', 'S14_일정상세'], ['S14_내일정_달력', 'S14_내일정_빈상태']] },
+  { no: '2-3', title: '비슷한 계약서 → 수정본 비교 → v2 보관', desc: '확정하지 않으면 v1과 일정 그대로', cols: [['S08_비슷한문서확인'], ['S11_비교준비_기본', 'S11_비교준비_일부만가능', 'S11_비교준비_비교불가'], ['S12_비교결과_기본', 'S12_비교결과_직접입력', 'S12_비교결과_입력반영', 'S12_비교결과_확정안함'], ['S13_일정등록_변경등록']] },
+  { no: '2-4', title: '내 계약서 · 다시 보기', desc: '언제든 결과를 다시 보고 챗봇으로 질문', cols: [['S15_내계약서_목록', 'S15_내계약서_빈상태'], ['S15_내계약서_문서상세']] },
+];
+
+const SCENARIOS = [
+  { name: '1차 ① 문서 없이 질문 → 문서 입력 시작', steps: ['S01_홈_기본', 'S10_챗봇_처음열기_일반', 'S10_챗봇_답변_사용법', 'S03_입력방식_선택'] },
+  { name: '1차 ② 가리던 중 질문 → 닫기 → 가리기 계속', steps: ['S05_가리기_직접가리기', 'S10_챗봇_가리기중', 'S05_가리기_직접가리기'] },
+  { name: '1차 ③ 분석 중 질문 → 완료 안내 → 결과', steps: ['S07_분석중_진행', 'S10_챗봇_분석중', 'S10_챗봇_분석완료안내', 'S08_분석결과_정상'] },
+  { name: '2차 ④ 결과 → 내 계약서 질문 → 근거 조항 → 대화 복귀', steps: ['S08_분석결과_정상', 'S10_챗봇_내문서답변', 'S09_조항상세_기본', 'S10_챗봇_내문서답변'] },
+  { name: '2차 ⑤ 비교 결과 → 바뀐 내용 질문', steps: ['S12_비교결과_기본', 'S10_챗봇_비교결과질문', 'S13_일정등록_변경등록'] },
+  { name: '2차 ⑥ 내 일정 → 내 계약서 → 그 문서로 질문', steps: ['S14_내일정_목록', 'S14_일정상세', 'S15_내계약서_문서상세', 'S10_챗봇_문서바꾸기', 'S10_챗봇_근거부족'] },
+  { name: '전체 A 새 계약서 등록 → 일정 저장 → 자동 보관', steps: ['S00_스플래시', 'S01_홈_기본', 'S02_문서선택_기본', 'S03_입력방식_선택', 'S03_촬영_카메라', 'S04_미리보기_정상', 'S05_가리기_직접가리기', 'S06_최종확인_정상', 'S07_분석중_진행', 'S08_분석결과_정상', 'S13_일정등록_신규', 'S14_내일정_목록', 'S15_내계약서_목록'] },
+  { name: '전체 B 비슷한 계약서 → 비교 → v2 보관', steps: ['S08_비슷한문서확인', 'S11_비교준비_기본', 'S12_비교결과_기본', 'S13_일정등록_변경등록', 'S15_내계약서_목록'] },
+  { name: '전체 C 수정본 확정하지 않음 → v1 유지', steps: ['S12_비교결과_기본', 'S12_비교결과_확정안함', 'S01_홈_기본'] },
+  { name: '전체 D 비교 못 한 칸 → 직접 입력 → 확정', steps: ['S12_비교결과_기본', 'S12_비교결과_직접입력', 'S12_비교결과_입력반영', 'S13_일정등록_변경등록'] },
+  { name: '단계 이동 · 가리기 중 올린 쪽 고치기 → 다시 가리기', steps: ['S05_가리기_가림추가', 'S04_미리보기_가리기후수정', 'S03_촬영_카메라', 'S04_미리보기_가리기후수정', 'S05_가리기_가림추가'] },
+];
+
+const CRITERIA = [
+  ['모든 서비스 화면에서 챗봇을 열 수 있다', ['C01_공통요소', 'S10_챗봇_처음열기_일반']],
+  ['업로드 없이 일반 질문을 할 수 있다', ['S10_챗봇_처음열기_일반', 'S10_챗봇_답변_사용법']],
+  ['답변에 사용한 문서가 명확하다', ['S10_챗봇_내문서답변', 'S10_챗봇_문서바꾸기']],
+  ['대화 종료 후 진행 중이던 작업이 유지된다', ['S10_챗봇_가리기중', 'S10_챗봇_분석완료안내']],
+  ['가리기 전 원본이 챗봇으로 자동 전송되지 않는다', ['S10_챗봇_가리기중', 'S06_최종확인_정상']],
+  ['로그인 화면·분기가 없다', ['S00_스플래시', 'S01_홈_기본']],
+  ['일정 없는 보관 문서도 다시 찾을 수 있다', ['S13_일정등록_신규', 'S15_내계약서_목록']],
+  ['외부 알림은 구현 범위를 넘어 표시하지 않는다', ['P01_알림패널', 'S14_일정상세']],
+];
+
+const focusChip = id => `<span class="fchip" data-focus="${id}">${id}</span>`;
+function renderIntro() {
+  const legend = `<div class="leg"><i></i>기본 흐름 (버튼 → 다음 화면)</div><div class="leg"><i class="e"></i>예외·되돌아가기</div><div class="leg"><i class="c"></i>챗봇 열기·닫기</div>`;
+  document.getElementById('intro').innerHTML =
+    `<div class="panel"><h1>문서AI 최종 와이어프레임</h1><div class="mut" style="font-size:16px">이음새 · 2026.11.12 · handoff v2 + 한재훈 플로우차트 + 팀 대화 반영</div>`
+    + `<h2 style="margin-top:22px">확정한 내용</h2><ul>`
+    + `<li>하단 탭: 홈 / 계약서 등록 / 내 계약서 / 내 일정</li>`
+    + `<li>헤더: 알림 + AI에게 질문(캐릭터). 질문 입구는 하나이고, 현재 화면·내 문서·법령 DB·앱 사용법을 함께 참고해 답해요</li>`
+    + `<li>보관: 분석 완료 → 일정 저장 시 캘린더 등록 + 내 계약서 자동 보관 · 일정 없이 보관 가능 · 분석 실패는 저장 안 함</li>`
+    + `<li>비교: AI가 비슷한 계약서를 찾으면 먼저 묻고 → 비교 → 수정본 확정 시 일정 변경 + v2 보관 · 확정 안 하면 v1·일정 유지</li>`
+    + `<li>문서: 23종 모두 고를 수 있게 그림 · PoC 구현은 근로계약서·임대차계약서</li>`
+    + `<li>로그인 화면 없음 · 개인정보는 직접 가린 뒤 가린 이미지만 전송 · 가리면 해석이 달라질 수 있다는 별도 안내는 넣지 않음 (가린 곳은 모두에게 같은 조건이고, 분석에 필요한 건 원문 내용)</li>`
+    + `<li>근거 법령: 법령마다 국가법령정보센터 원문 링크(법령 원문 ↗)와 "AI도 실수할 수 있어요" 문구 표시 · 결과 카드·조항 상세·챗봇 답변 모두</li>`
+    + `<li>스크롤: 한 화면보다 긴 화면은 본문만 스크롤하고 헤더·하단 버튼은 고정 · 보드의 <b style="color:#E5484D">빨간 점선</b>이 첫 화면 끝 · 챗봇은 대화 영역만 스크롤, 입력창 고정</li></ul>`
+    + `<h2 style="margin-top:22px">읽는 법</h2>${legend}<div style="margin-top:8px">보드 이름: <b>S08_분석결과_정상</b> = 화면 번호_화면 이름_상태 · 노란 메모: 들어오는 곳·버튼·뒤로·스크롤·챗봇 추천 질문·캐릭터·협의·PoC 제외</div>`
+    + `<div style="margin-top:8px"><b>보드나 버튼을 누르면</b> 폰 미리보기가 열리고, 그 안에서는 모든 버튼·탭·헤더가 실제 화면으로 이동해요.</div></div>`
+    + `<div class="panel"><h2>흐름 지도 · 누르면 그 화면으로</h2>${LANES.map(l => `<div style="margin:10px 0 2px"><b style="color:var(--accent)">${l.no}</b> <b>${l.title}</b></div>${l.cols.flat().map(focusChip).join('')}`).join('')}</div>`
+    + `<div class="panel"><h2>클릭 시연 (v2 작업 순서)</h2>${SCENARIOS.map((s, i) => `<div class="play" data-play="${i}">▶ <span>${s.name}<br><small>${s.steps.length}개 화면</small></span></div>`).join('')}`
+    + `<h2 style="margin-top:24px">완료 기준 (v2)</h2>${CRITERIA.map(([text, ids], i) => `<div class="crit"><span class="n">${i + 1}</span><span>${text}<br>${ids.map(focusChip).join('')}</span></div>`).join('')}</div>`;
+}
+
+const LANE_OF = {};
+function memoHtml(memo) {
+  const line = (label, value, cls = '') => value ? `<div class="${cls}"><i>${label}</i><span>${value}</span></div>` : '';
+  return `<div class="memo">${line('들어오는 곳', memo.in)}${line('버튼', memo.btn)}${line('뒤로·취소', memo.back)}${line('스크롤', memo.scroll)}${line('챗봇', memo.chat)}${line('캐릭터', memo.char)}${line('협의', memo.deal, 'deal')}${line('PoC', memo.poc, 'poc')}</div>`;
+}
+function renderLanes() {
+  document.getElementById('lanes').innerHTML = LANES.map(lane => {
+    const cols = lane.cols.map(ids => `<div class="col">${ids.map(id => {
+      LANE_OF[id] = lane.no;
+      const b = BOARDS[id];
+      return `<div><div class="blabel">${id}</div><div class="board ${b.fixed ? 'fx' : ''}" data-board="${id}">${b.html}</div>${memoHtml(b.memo)}</div>`;
+    }).join('')}</div>`).join('');
+    return `<section class="lane" data-lane="${lane.no}"><div class="lane-h"><span class="no">${lane.no}</span><span class="tt">${lane.title}</span><span class="dd">${lane.desc}</span></div><div class="cols">${cols}</div></section>`;
+  }).join('');
+}
+
+// ============================================================
+// 6. 화살표: data-arrow가 붙은 버튼에서 목적지 보드로
+// ============================================================
+const WIRE_COLOR = { m: '#2458D6', e: '#8A9099', c: '#7F77DD' };
+const WIRE_MARKER = { m: 'aM', e: 'aE', c: 'aC' };
+let scale = 0.32, panX = 40, panY = 40;
+const world = document.getElementById('world');
+
+function rectInWorld(el) {
+  const r = el.getBoundingClientRect(), w = world.getBoundingClientRect();
+  const x = (r.left - w.left) / scale, y = (r.top - w.top) / scale;
+  return { left: x, top: y, right: x + r.width / scale, bottom: y + r.height / scale, cx: x + r.width / scale / 2, cy: y + r.height / scale / 2 };
+}
+function curvePath(from, to, horizontal) {
+  const [x1, y1] = from, [x2, y2] = to;
+  if (horizontal) {
+    const dx = Math.max(80, Math.abs(x2 - x1) / 2) * (x2 >= x1 ? 1 : -1);
+    return [`M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`, (x1 + x2) / 2, (y1 + y2) / 2];
+  }
+  const dy = Math.max(60, Math.abs(y2 - y1) / 2);
+  return [`M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`, (x1 + x2) / 2, (y1 + y2) / 2];
+}
+// 한 화면(844px)보다 긴 보드에 첫 화면이 끝나는 선을 긋는다. 그 아래는 스크롤해야 보인다
+function markScrollFold() {
+  document.querySelectorAll('#lanes .board:not(.fx):not([data-board^="C01"])').forEach(board => {
+    if (board.querySelector('.fold') || board.offsetHeight <= 850) return;
+    board.insertAdjacentHTML('beforeend', '<div class="fold" style="top:844px"><span>↓ 첫 화면 끝 · 아래는 스크롤 (헤더·하단 버튼 고정)</span></div>');
+  });
+}
+function drawWires() {
+  markScrollFold();
+  const svg = document.getElementById('wires');
+  svg.setAttribute('width', world.scrollWidth); svg.setAttribute('height', world.scrollHeight);
+  let out = '';
+  const sideLaneCount = new Map(); // 같은 세로 줄로 내려가는 화살표는 보드 왼쪽 통로를 조금씩 비켜서 지나간다
+  world.querySelectorAll('#lanes [data-arrow]').forEach(el => {
+    if (el.closest('.base')) return; // 흐리게 깔린 바탕 화면의 버튼은 화살표 대상이 아니다
+    const sourceBoard = el.closest('.board'), target = world.querySelector(`#lanes .board[data-board="${el.dataset.go}"]`);
+    if (!sourceBoard || !target || target === sourceBoard) return;
+    const kind = el.dataset.arrow, color = WIRE_COLOR[kind];
+    const label = (el.dataset.label || el.textContent).trim().slice(0, 16);
+    // 화살표는 버튼 높이에서 보드 테두리에 붙여 시작해 화면 내용을 가리지 않게 한다
+    const buttonRect = rectInWorld(el), s = rectInWorld(sourceBoard), t = rectInWorld(target), y = buttonRect.cy;
+    const dash = kind === 'm' ? '' : ' stroke-dasharray="10 7"';
+    const textStyle = 'font-size="17" font-weight="700" style="paint-order:stroke;stroke:#E9EBEE;stroke-width:7px"';
+    const targetY = Math.min(Math.max(y, t.top + 70), t.bottom - 70);
+    if (LANE_OF[sourceBoard.dataset.board] !== LANE_OF[el.dataset.go]) {
+      // 다른 줄로 이어지는 버튼은 짧은 꼬리표로 목적지를 알려준다
+      const x = s.right + 60;
+      out += `<circle cx="${s.right}" cy="${y}" r="6" fill="${color}"/><path d="M${s.right},${y} H${x}" stroke="${color}" stroke-width="3"${dash} marker-end="url(#${WIRE_MARKER[kind]})" fill="none"/>`
+        + `<text x="${x + 8}" y="${y + 6}" fill="${color}" ${textStyle}>→ ${LANE_OF[el.dataset.go]} ${el.dataset.go.split('_').slice(0, 2).join(' ')}</text>`;
+      return;
+    }
+    if (t.left >= s.right - 4 || t.right <= s.left + 4) {
+      const forward = t.left >= s.right - 4;
+      const [d, lx, ly] = curvePath([forward ? s.right : s.left, y], [forward ? t.left : t.right, targetY], true);
+      out += `<circle cx="${forward ? s.right : s.left}" cy="${y}" r="6" fill="${color}"/><path d="${d}" stroke="${color}" stroke-width="3"${dash} marker-end="url(#${WIRE_MARKER[kind]})" fill="none"/>`
+        + `<text x="${lx}" y="${ly - 10}" text-anchor="middle" fill="${color}" ${textStyle}>${label}</text>`;
+      return;
+    }
+    // 같은 세로 줄(위·아래 보드): 보드 왼쪽 통로로 꺾어서 잇는다
+    const columnKey = Math.round(s.left), order = sideLaneCount.get(columnKey) || 0;
+    sideLaneCount.set(columnKey, order + 1);
+    const x = s.left - 34 - order * 22;
+    out += `<circle cx="${s.left}" cy="${y}" r="6" fill="${color}"/><path d="M${s.left},${y} H${x} V${t.top + 70} H${t.left}" stroke="${color}" stroke-width="3"${dash} marker-end="url(#${WIRE_MARKER[kind]})" fill="none" stroke-linejoin="round"/>`
+      + `<text x="${x - 8}" y="${(y + t.top + 70) / 2}" text-anchor="end" fill="${color}" ${textStyle}>${label}</text>`;
+  });
+  svg.innerHTML = out;
+}
+
+// ============================================================
+// 7. 확대·이동
+// ============================================================
+const stage = document.getElementById('stage'), zoomText = document.getElementById('zoomText');
+function applyView() { world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`; zoomText.textContent = Math.round(scale * 100) + '%'; }
+function zoomAt(next, px, py) { next = Math.min(1.5, Math.max(0.05, next)); panX = px - (px - panX) * (next / scale); panY = py - (py - panY) * (next / scale); scale = next; applyView(); }
+function fitAll() { scale = Math.min(innerWidth / world.scrollWidth, innerHeight / world.scrollHeight) * 0.95; panX = 20; panY = 20; applyView(); }
+function focusOn(selector) {
+  const el = world.querySelector(selector); if (!el) return;
+  const r = rectInWorld(el); scale = 0.55; panX = innerWidth / 2 - (r.left + 195) * scale; panY = 90 - r.top * scale; applyView();
+  el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600);
+}
+stage.addEventListener('wheel', e => { e.preventDefault(); zoomAt(scale * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX, e.clientY); }, { passive: false });
+let drag = null;
+stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, panX, panY, target: e.target, moved: false }; });
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 5) { drag.moved = true; stage.setPointerCapture(e.pointerId); stage.classList.add('dragging'); }
+  if (drag.moved) { panX = drag.panX + e.clientX - drag.x; panY = drag.panY + e.clientY - drag.y; applyView(); }
+});
+stage.addEventListener('pointerup', () => { if (drag && !drag.moved) handleCanvasClick(drag.target); drag = null; stage.classList.remove('dragging'); });
+function handleCanvasClick(target) {
+  const focus = target.closest('[data-focus]'); if (focus) return focusOn(`.board[data-board="${focus.dataset.focus}"]`);
+  const play = target.closest('[data-play]'); if (play) return openViewer(SCENARIOS[+play.dataset.play].steps[0], +play.dataset.play);
+  const board = target.closest('.board'); if (!board) return;
+  const link = target.closest('[data-go]');
+  openViewer(link && !link.closest('.base') ? link.dataset.go : board.dataset.board);
+}
+document.getElementById('zoomIn').onclick = () => zoomAt(scale * 1.25, innerWidth / 2, innerHeight / 2);
+document.getElementById('zoomOut').onclick = () => zoomAt(scale / 1.25, innerWidth / 2, innerHeight / 2);
+document.getElementById('zoomFit').onclick = fitAll;
+document.getElementById('goIntro').onclick = () => { scale = 0.45; panX = 30; panY = 30; applyView(); };
+
+// ============================================================
+// 8. 폰 미리보기: 어디서 눌러도 해당 화면으로 이동
+// ============================================================
+const viewer = document.getElementById('viewer'), phone = document.getElementById('vphone');
+let visitedScreens = [], scenario = null;
+function openViewer(id, scenarioIndex) {
+  if (scenarioIndex !== undefined) scenario = scenarioIndex;
+  visitedScreens = []; viewer.classList.add('on'); fitPhone(); showScreen(id, false);
+}
+function fitPhone() {
+  const s = Math.min(1, (innerHeight - 50) / 844);
+  phone.style.transform = `scale(${s})`;
+  const hold = document.getElementById('vhold'); hold.style.width = 390 * s + 'px'; hold.style.height = 844 * s + 'px';
+}
+function showScreen(id, remember = true) {
+  const b = BOARDS[id]; if (!b) return;
+  if (remember && phone.dataset.current) visitedScreens.push(phone.dataset.current);
+  phone.dataset.current = id;
+  phone.innerHTML = `<div class="board ${b.fixed ? 'fx' : ''}">${b.html}</div>`; phone.scrollTop = 0;
+  document.getElementById('vtitle').textContent = id;
+  document.getElementById('vlane').textContent = `${LANE_OF[id] || ''} 줄 · ${(LANES.find(l => l.no === LANE_OF[id]) || {}).title || ''}`;
+  // 실패·빈 상태처럼 버튼으로는 가지 않는 보드도 미리보기에서 바로 열 수 있게, 같은 세로 줄의 다른 상태를 보여준다
+  const sameColumn = LANES.flatMap(l => l.cols).find(col => col.includes(id)) || [];
+  const otherStates = sameColumn.filter(other => other !== id);
+  document.getElementById('vmemo').innerHTML = memoHtml(b.memo)
+    + (otherStates.length ? `<div style="margin-top:12px"><b>같은 화면의 다른 상태</b><br>${otherStates.map(other => `<span class="fchip" data-state="${other}">${other}</span>`).join('')}</div>` : '');
+  document.getElementById('vmsg').textContent = '';
+  renderScenarioSteps(id);
+}
+function renderScenarioSteps(currentId) {
+  const box = document.getElementById('vscen');
+  if (scenario === null) { box.innerHTML = ''; return; }
+  const s = SCENARIOS[scenario];
+  box.innerHTML = `<b>${s.name}</b><ol class="vsteps">${s.steps.map((id, i) => `<li class="${id === currentId ? 'on' : ''}" data-step="${i}">${i + 1}. ${id}</li>`).join('')}</ol>`;
+}
+phone.addEventListener('click', e => {
+  // 카드 안의 작은 버튼(법령 원문 ↗ 등)은 카드 이동보다 먼저 처리한다
+  const inPlace = e.target.closest('[data-act]');
+  if (inPlace && !inPlace.closest('.base')) return showInPlaceAction(inPlace.dataset.act);
+  const link = e.target.closest('[data-go]');
+  if (link && !link.closest('.base')) showScreen(link.dataset.go);
+});
+// 화면이 바뀌지 않는 버튼은 폰 아래에 무슨 일이 일어나는지 잠깐 보여준다
+function showInPlaceAction(text) {
+  const hold = document.getElementById('vhold');
+  hold.querySelector('.vtoast')?.remove();
+  hold.insertAdjacentHTML('beforeend', `<div class="vtoast">${text}</div>`);
+  setTimeout(() => hold.querySelector('.vtoast')?.remove(), 2600);
+  document.getElementById('vmsg').textContent = '이 화면 안에서: ' + text;
+}
+document.getElementById('vmemo').addEventListener('click', e => { const chip = e.target.closest('[data-state]'); if (chip) showScreen(chip.dataset.state); });
+document.getElementById('vscen').addEventListener('click', e => { const li = e.target.closest('[data-step]'); if (li) showScreen(SCENARIOS[scenario].steps[+li.dataset.step]); });
+document.getElementById('vback').onclick = () => { if (visitedScreens.length) showScreen(visitedScreens.pop(), false); };
+document.getElementById('vclose').onclick = () => { viewer.classList.remove('on'); scenario = null; };
+document.getElementById('vcanvas').onclick = () => { const id = phone.dataset.current; viewer.classList.remove('on'); scenario = null; focusOn(`.board[data-board="${id}"]`); };
+addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('vclose').click(); });
+addEventListener('resize', () => { if (viewer.classList.contains('on')) fitPhone(); });
+
+// ============================================================
+// 9. 시작
+// ============================================================
+renderIntro();
+renderLanes();
+applyView();
+document.fonts.ready.then(() => { drawWires(); document.getElementById('goIntro').click(); });
+</script>
+</body>
+</html>
