@@ -6,7 +6,7 @@ export const mockRequestedAnalysis: { analysisId: number; status: AnalysisStatus
 export const mockAnalysis: Analysis = {
   analysisId: 1,
   contractId: 1,
-  documentTypeCode: 'LABOR',
+  documentTypeCode: 'EMPLOYMENT',
   documentTitle: '카페 알바 근로계약서',
   status: 'COMPLETED',
   keyTerms: [

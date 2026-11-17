@@ -14,7 +14,7 @@ const DOCUMENT_CHIP_LANES: { lane: DocumentTypeFocus['lane']; chips: { group: st
 ]
 
 // 홈의 "예시 계약서로 먼저 해보기"가 보여 주는 문서 종류
-const SAMPLE_DOCUMENT_TYPE_CODE = 'LABOR'
+const SAMPLE_DOCUMENT_TYPE_CODE = 'EMPLOYMENT'
 // 이 날수 이하로 남으면 D-day를 빨간색으로 보여 준다
 const URGENT_DAYS_LEFT = 14
 

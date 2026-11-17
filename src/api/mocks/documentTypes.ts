@@ -19,7 +19,7 @@ export const mockDocumentTypes: DocumentType[] = [
   { code: 'RESTORATION_CLAIM', name: '원상복구·정산 요구서', lane: '집', group: '계약 종료·이사', grade: 'B', checkNote: '통상 마모까지 청구하는지', supported: false },
   { code: 'DEPOSIT_RETURN_GUIDE', name: '보증금 미반환 시 절차 안내', lane: '집', group: '계약 종료·이사', grade: 'A', checkNote: '이사 전 임차권등기', urgentNote: '이사 전 확인', searchNote: '임차권등기', supported: false },
   // 취업·근로 시작
-  { code: 'LABOR', name: '근로계약서', lane: '일', group: '취업·근로 시작', grade: 'A', checkNote: '필수 기재사항, 최저임금, 주휴수당', supported: true },
+  { code: 'EMPLOYMENT', name: '근로계약서', lane: '일', group: '취업·근로 시작', grade: 'A', checkNote: '필수 기재사항, 최저임금, 주휴수당', supported: true },
   { code: 'SALARY_CONTRACT', name: '연봉계약서', lane: '일', group: '취업·근로 시작', grade: 'A', checkNote: '고정 연장수당이 몇 시간분인지', supported: false },
   { code: 'PROBATION_CONTRACT', name: '수습·인턴 계약서', lane: '일', group: '취업·근로 시작', grade: 'A', checkNote: '수습 감액 기간·대상 조건', supported: false },
   { code: 'FREELANCE_CONTRACT', name: '프리랜서 용역계약서 (3.3%)', lane: '일', group: '취업·근로 시작', grade: 'B', checkNote: '근로자처럼 일하는지, 대금 지급일', supported: false },

@@ -17,7 +17,7 @@ const SELECT_DOCUMENT_TO = '/contracts/new/capture' // S03
 const STICKY_HEADER_HEIGHT = 96
 // 와이어프레임 "많이 찾는 계약서"
 const POPULAR_DOCUMENTS: { code: string; lane: Lane; note: string }[] = [
-  { code: 'LABOR', lane: '일', note: '알바·정규·계약직' },
+  { code: 'EMPLOYMENT', lane: '일', note: '알바·정규·계약직' },
   { code: 'LEASE', lane: '집', note: '전세·월세·반전세' },
 ]
 
