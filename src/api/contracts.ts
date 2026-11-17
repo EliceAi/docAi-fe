@@ -1,4 +1,4 @@
-import { mockContractDetail, mockCreatedContract, mockMyContracts } from './mocks/contracts'
+import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 
@@ -25,9 +25,24 @@ export type ContractSummary = {
   savedAt: string
   needsCheckCount: number
   analysisId: number
+  missingItemCount?: number
+  scheduleCount?: number
+  previousVersion?: { contractId: number; version: number; savedAt: string }
 }
 
-export type ContractDetail = ContractSummary & { pageCount: number; scheduleIds: number[] }
+export type ContractDetail = ContractSummary & {
+  pageCount: number
+  scheduleIds: number[]
+  reviewLabel: string
+  keyTerms: { label: string; value: string; state?: 'warn' | 'miss' | 'unk' }[]
+  schedules: {
+    scheduleId: number
+    title: string
+    date: string
+    daysLeft: number
+    source: 'written' | 'typed' | 'review'
+  }[]
+}
 
 /**
  * POST /api/contracts (multipart)
@@ -59,7 +74,7 @@ export function reuploadPage(contractId: number, pageNo: number, page: Blob, mas
 
 /** POST /api/contracts/{contractId}/archive: 내 계약서에 보관 */
 export function archiveContract(contractId: number): Promise<ContractSummary> {
-  if (shouldMock('archiveContract')) return mockResponse({ ...mockMyContracts[0], contractId })
+  if (shouldMock('archiveContract')) return mockResponse(mockMyContracts.find(contract => contract.contractId === contractId) ?? { ...mockMyContracts[1], contractId })
   return request(`/api/contracts/${contractId}/archive`, { method: 'POST' })
 }
 
@@ -71,7 +86,10 @@ export function getMyContracts(): Promise<ContractSummary[]> {
 
 /** GET /api/contracts/{contractId} */
 export function getMyContract(contractId: number): Promise<ContractDetail> {
-  if (shouldMock('getMyContract')) return mockResponse({ ...mockContractDetail, contractId })
+  if (shouldMock('getMyContract')) {
+    const contract = mockContractDetails.find(detail => detail.contractId === contractId)
+    return contract ? mockResponse(contract) : Promise.reject(new Error('계약서를 찾을 수 없어요.'))
+  }
   return request(`/api/contracts/${contractId}`)
 }
 
