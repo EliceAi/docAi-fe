@@ -4,10 +4,17 @@ import { getSampleAnalysis } from '../../api/analyses'
 import { getUpcomingSchedules, type Schedule } from '../../api/schedules'
 import { useApiData } from '../../api/useApiData'
 import { Header, Icon, Mascot, Say, Screen, TabBar } from '../../common/components'
+import type { DocumentTypeFocus } from '../contract-register/DocumentTypePage'
 import { SplashPage } from './SplashPage'
 
+// 홈 "내 상황에 맞는 문서 찾기" 칩. 누르면 문서 선택(S02)에서 그 탭(집/일)을 열고 그 묶음으로 내려간다
+const DOCUMENT_CHIP_LANES: { lane: DocumentTypeFocus['lane']; chips: { group: string; label: string }[] }[] = [
+  { lane: '집', chips: [{ group: '집 구하기', label: '집 구하기 6' }, { group: '입주·거주', label: '입주·거주 4' }, { group: '계약 종료·이사', label: '계약 종료·이사 3' }] },
+  { lane: '일', chips: [{ group: '취업·근로 시작', label: '취업·근로 시작 6' }, { group: '급여·퇴직', label: '급여·퇴직 4' }] },
+]
+
 // 홈의 "예시 계약서로 먼저 해보기"가 보여 주는 문서 종류
-const SAMPLE_DOCUMENT_TYPE_CODE = 'LABOR'
+const SAMPLE_DOCUMENT_TYPE_CODE = 'EMPLOYMENT'
 // 이 날수 이하로 남으면 D-day를 빨간색으로 보여 준다
 const URGENT_DAYS_LEFT = 14
 
@@ -75,18 +82,14 @@ export function HomeScreen({ upcoming, onStartSample, sampleFailed = false }: Ho
       {isFirstUse ? <EmptyUpcoming /> : <UpcomingSchedules schedules={upcoming} />}
       <div className="card">
         <div className="h2">내 상황에 맞는 문서 찾기<Link className="more" to="/contracts/new">23종 보기</Link></div>
-        <div className="lane2">
-          <b>집</b>
-          {['집 구하기 6', '입주·거주 4', '계약 종료·이사 3'].map(label => (
-            <Link key={label} className="chip" to="/contracts/new">{label}</Link>
-          ))}
-        </div>
-        <div className="lane2">
-          <b>일</b>
-          {['취업·근로 시작 6', '급여·퇴직 4'].map(label => (
-            <Link key={label} className="chip" to="/contracts/new">{label}</Link>
-          ))}
-        </div>
+        {DOCUMENT_CHIP_LANES.map(({ lane, chips }) => (
+          <div key={lane} className="lane2">
+            <b>{lane}</b>
+            {chips.map(chip => (
+              <Link key={chip.group} className="chip" to="/contracts/new" state={{ lane, group: chip.group } satisfies DocumentTypeFocus}>{chip.label}</Link>
+            ))}
+          </div>
+        ))}
       </div>
       <a className="card row" role="button" tabIndex={0} onClick={onStartSample} onKeyDown={event => activateOnEnter(event, onStartSample)}>
         <Mascot face={4} size={46} />

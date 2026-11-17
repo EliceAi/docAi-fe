@@ -69,7 +69,7 @@ export function MyContractsView({ contracts }: { contracts: ContractSummary[] })
             {contract.version > 1 && <Tag color="blu">v{contract.version}</Tag>}
             <br />
             <span className="mut">
-              {contract.documentTypeCode === 'LABOR' ? '근로' : '임대차'} · {analysisDate(contract.savedAt)} 분석
+              {contract.documentTypeCode === 'EMPLOYMENT' ? '근로' : '임대차'} · {analysisDate(contract.savedAt)} 분석
               {contract.previousVersion && ` · 이전 버전 v${contract.previousVersion.version} (${analysisDate(contract.previousVersion.savedAt)})`}
             </span>
             <span className="row" style={{ gap: 4, marginTop: 6, flexWrap: 'wrap' }}>

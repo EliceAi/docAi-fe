@@ -52,7 +52,7 @@ export function MyContractDetailView({ contract }: { contract: ContractDetail })
       <div>
         <b style={{ fontSize: 21 }}>{contract.title}</b>
         <div className="mut">
-          {contract.documentTypeCode === 'LABOR' ? '근로계약서' : '임대차계약서'}{contract.reviewLabel && ` · ${contract.reviewLabel}`}
+          {contract.documentTypeCode === 'EMPLOYMENT' ? '근로계약서' : '임대차계약서'}{contract.reviewLabel && ` · ${contract.reviewLabel}`}
         </div>
       </div>
       {contract.keyTerms.length > 0 && (
