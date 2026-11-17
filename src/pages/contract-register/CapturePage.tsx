@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ChangeEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getDocumentTypes, type DocumentType } from '../../api/documentTypes'
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Header, Icon, Layered, Screen, StepBar, StepFooter } from '../../common/components'
@@ -28,10 +28,12 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
   initialMode?: CaptureMode
   cameraPreviewPhotos?: File[]
 }) {
-  const [mode, setMode] = useState<CaptureMode>(initialMode)
+  const location = useLocation()
+  const captureRequest = location.state as { captureMode?: CaptureMode; replacePageId?: string } | null
+  const [mode, setMode] = useState<CaptureMode>(captureRequest?.captureMode ?? initialMode)
   const [message, setMessage] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
-  const { documentTypeCode, addFiles } = useRegisterFlow()
+  const { documentTypeCode, addFiles, pages, editPage } = useRegisterFlow()
   const navigate = useNavigate()
   const selectedDocument = documentTypes.find(document => document.code === (documentTypeCode ?? 'EMPLOYMENT'))
   const showCameraUnavailable = useCallback(() => setMode('permission'), [])
@@ -43,8 +45,20 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
       setMessage(error)
       return
     }
-    addFiles(files)
-    navigate('/contracts/new/preview')
+    if (captureRequest?.replacePageId) {
+      if (!pages.some(page => page.id === captureRequest.replacePageId)) {
+        setMode('select')
+        setMessage('다시 찍을 쪽을 찾을 수 없어요. 미리보기에서 다시 골라 주세요.')
+        return
+      }
+      if (files.length !== 1) {
+        setMode('select')
+        setMessage('다시 찍을 쪽은 한 장만 골라 주세요.')
+        return
+      }
+      editPage({ type: 'replace', id: captureRequest.replacePageId, file: files[0] })
+    } else addFiles(files)
+    navigate('/contracts/new/preview', { replace: !!captureRequest })
   }
 
   function selectFiles(event: ChangeEvent<HTMLInputElement>) {
@@ -87,7 +101,7 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
   )
 
   if (mode === 'camera') {
-    return <CameraCapture onCancel={() => setMode('select')} onFinish={finishCapture} onUnavailable={showCameraUnavailable}
+    return <CameraCapture onCancel={() => captureRequest ? navigate('/contracts/new/preview', { replace: true }) : setMode('select')} onFinish={finishCapture} onUnavailable={showCameraUnavailable}
       previewPhotos={cameraPreviewPhotos} />
   }
   if (mode === 'permission') {
