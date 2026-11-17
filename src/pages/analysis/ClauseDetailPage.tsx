@@ -51,6 +51,8 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
   const { openChat } = useAppPanels()
   const [copyMessage, setCopyMessage] = useState('')
   const back = `/analyses/${clause.analysisId}`
+  const hasClauseNumber = clause.clauseNumber !== undefined && clause.clauseNumber > 0
+  const hasPage = clause.pageNo !== undefined && clause.pageNo > 0
 
   useEffect(() => {
     if (!copyMessage) return
@@ -83,20 +85,20 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
         </a>
       )}
       <div className="row">
-        <Tag color="red" icon="warn">확인 필요</Tag><b>제{clause.clauseNumber}조 {clause.title}</b>
+        <Tag color="red" icon="warn">확인 필요</Tag><b>{hasClauseNumber && `제${clause.clauseNumber}조 `}{clause.title}</b>
         <span className="mut" style={{ marginLeft: 'auto' }}>{clause.documentTitle}</span>
       </div>
       <div className="card">
         <div className="h2">원문</div>
         <div className="row" style={{ alignItems: 'flex-start' }}>
           <div className="orig" style={{ flex: 1 }}><mark>{clause.originalText}</mark></div>
-          <div className="minipage" aria-label={`${clause.pageNo}쪽 원문 위치 예시`}>
+          {hasPage && <div className="minipage" aria-label={`${clause.pageNo}쪽 원문 위치 예시`}>
             <div className="ln" /><div className="ln" /><div className="ln hl" />
             <div className="ln" /><div className="ln" /><div className="ln" />
             <span style={{ fontSize: 10, color: 'var(--muted)' }}>{clause.pageNo}쪽</span>
-          </div>
+          </div>}
         </div>
-        <div className="mut" style={{ marginTop: 6 }}>위치: {clause.pageNo}쪽 {clause.locationDescription}</div>
+        {(hasPage || clause.locationDescription) && <div className="mut" style={{ marginTop: 6 }}>위치: {hasPage && `${clause.pageNo}쪽 `}{clause.locationDescription}</div>}
       </div>
       <div className="card"><div className="h2">쉬운 설명</div>{clause.easyExplanation}</div>
       <div className="card"><div className="h2">왜 확인이 필요해요</div>{clause.checkReason}</div>
