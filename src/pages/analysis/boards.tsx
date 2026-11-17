@@ -1,4 +1,6 @@
 import type { Board } from '../../dev/types'
+import { mockClauseDetail } from '../../api/mocks/analyses'
+import { ClauseDetailView } from './ClauseDetailPage'
 
 // 이 폴더의 와이어프레임 보드. 담당자가 둘이라 아래 주석으로 구역을 나눴다(같은 줄을 동시에 고치면 git 충돌).
 // 화면을 만들면 render에 그 보드 상태를 mock 데이터로 그려 연결한다.
@@ -12,5 +14,5 @@ export const analysisBoards: Board[] = [
   { id: 'S08_비슷한문서확인', owner: '김지희', path: '/analyses/1' },
 
   // S09 조항 상세 · #18 구자건
-  { id: 'S09_조항상세_기본', owner: '구자건', path: '/analyses/1/clauses/1' },
+  { id: 'S09_조항상세_기본', owner: '구자건', path: '/analyses/1/clauses/1', render: () => <ClauseDetailView clause={mockClauseDetail} fromChat /> },
 ]

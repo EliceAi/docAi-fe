@@ -16,8 +16,8 @@ export function Disclaimer() {
 }
 
 // 와이어프레임 .src "법령 원문 ↗": 국가법령정보센터의 조문 원문을 새 탭으로 연다
-export function LawSourceLink({ url = 'https://www.law.go.kr', children = '법령 원문 ↗' }: { url?: string; children?: ReactNode }) {
+export function LawSourceLink({ url = 'https://www.law.go.kr', children = '법령 원문 ↗', className = 'src' }: { url?: string; children?: ReactNode; className?: string }) {
   return (
-    <a className="src" href={url} target="_blank" rel="noreferrer">{children}</a>
+    <a className={className} href={url} target="_blank" rel="noreferrer">{children}</a>
   )
 }
