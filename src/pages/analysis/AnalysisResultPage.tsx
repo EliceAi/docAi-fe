@@ -154,8 +154,12 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
     <Screen header={<Header title="분석 결과" back="/" chatFrom="S08" contractId={analysis.contractId} />}
             footer={<Footer><Button to="/schedules/new">일정 확인하고 저장</Button></Footer>}>
       <div>
-        <div className="row"><b style={{ fontSize: 21 }}>{analysis.documentTitle}</b>{analysis.isSample && <Tag>예시</Tag>}</div>
-        <div className="mut">{analysis.documentTypeName ?? (analysis.documentTypeCode === 'EMPLOYMENT' ? '근로계약서' : '임대차계약서')} · {analysis.reviewLabel} · {analysis.analyzedAt} 분석</div>
+        <div className="row"><b style={{ fontSize: 21 }}>{analysis.documentTitle}</b>{analysis.isSample && <Tag>예시</Tag>}{analysis.version ? <Tag>v{analysis.version}</Tag> : null}</div>
+        <div className="mut">{[
+          analysis.documentTypeName ?? (analysis.documentTypeCode === 'EMPLOYMENT' ? '근로계약서' : '임대차계약서'),
+          analysis.reviewLabel,
+          `${analysis.analyzedAt} 분석`,
+        ].filter(Boolean).join(' · ')}</div>
       </div>
       <div className="note"><Icon name="info" size={14} /> {analysis.readScope}</div>
       {isPartial && <>
@@ -179,7 +183,7 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
           ))}
         </div>
       </div>
-      {!isPartial && !isGeneral && <div className="cnt">
+      {!isPartial && !isGeneral && analysis.summaryAvailable !== false && <div className="cnt">
         <Tag color="red" icon="warn">확인 필요 {analysis.checkCount}</Tag>
         {isLease ? <Tag color="blu">기한 {analysis.deadline ? 1 : 0}</Tag> : <Tag color="amb">빠진 항목 {analysis.missingItems.length}</Tag>}
         <Tag>전체 조항 {analysis.clauseCount ?? analysis.clauses.length}</Tag>

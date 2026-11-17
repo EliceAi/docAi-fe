@@ -1,5 +1,6 @@
 import type { Analysis, AnalysisResult, AnalysisStatus, Clause, ClauseDetail } from '../analyses'
 import { mockDocumentTypes } from './documentTypes'
+import { mockContractDetails } from './contracts'
 
 export const mockRequestedAnalysis: { analysisId: number; status: AnalysisStatus } = { analysisId: 1, status: 'IN_PROGRESS' }
 
@@ -205,6 +206,44 @@ export const mockSimilarAnalysis: AnalysisResult = {
     scheduleCount: 3,
   },
 }
+
+// S15의 신림동 전세와 역삼동 v1에서 참조하는 분석. v2의 조건·판단을 상속하지 않는다.
+export const mockStoredAnalyses: AnalysisResult[] = mockContractDetails
+  .filter(contract => contract.analysisId === 3 || contract.analysisId === 4)
+  .map<AnalysisResult>(contract => ({
+    analysisId: contract.analysisId,
+    contractId: contract.contractId,
+    documentTypeCode: contract.documentTypeCode,
+    documentTitle: contract.title,
+    version: contract.version,
+    status: 'COMPLETED',
+    reviewLabel: contract.reviewLabel,
+    analyzedAt: contract.savedAt.replaceAll('-', '.'),
+    readScope: `v${contract.version}로 보관한 분석 당시의 조건이에요.`,
+    isSample: true,
+    summaryAvailable: false,
+    checkCount: contract.needsCheckCount,
+    keyTerms: contract.keyTerms.length > 0
+      ? contract.keyTerms.map(term => ({ ...term, source: 'written' }))
+      : [
+          { label: '계약 종류', value: contract.analysisId === 3 ? '전세' : '임대차', source: 'written' },
+          { label: '보증금', value: null, source: 'review' },
+          { label: '기간', value: null, source: 'review' },
+        ],
+    findings: [],
+    missingItems: [],
+    clauses: [],
+    questions: [],
+    dateCount: 0,
+    dateSummary: '',
+    unreadablePages: [],
+    unknowns: {
+      title: '원문과 함께 확인해 주세요',
+      explanation: contract.keyTerms.length > 0
+        ? '보관된 이전 버전의 조건이에요. 조항 원문과 특약 내용은 해당 버전의 계약서에서 확인해 주세요.'
+        : '보증금·기간 정보가 없어 확인이 필요해요. 계약서 원문에서 내용을 확인해 주세요.',
+    },
+  }))
 
 // PoC의 나머지 21종은 문서 목록과 같은 코드·이름으로 공통 확인 항목을 보여 준다.
 export const mockGeneralAnalyses: AnalysisResult[] = mockDocumentTypes

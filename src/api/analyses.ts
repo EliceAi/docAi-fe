@@ -1,4 +1,4 @@
-import { mockClauseDetail, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockNormalAnalysis, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis } from './mocks/analyses'
+import { mockClauseDetail, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockNormalAnalysis, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses } from './mocks/analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 
@@ -38,6 +38,9 @@ export type Analysis = {
 /** S08에 표시할 분석 당시의 조건·조항·확인 질문. */
 export type AnalysisResult = Analysis & {
   documentTypeName?: string
+  version?: number
+  /** 전체 조항·기한 등의 집계 정보가 없는 보관 예시는 수치를 단정하지 않는다. */
+  summaryAvailable?: boolean
   reviewLabel: string
   analyzedAt: string
   readScope: string
@@ -58,7 +61,7 @@ const mockAnalysisOverrides = new Map<number, AnalysisResult>()
 
 function findMockAnalysis(analysisId: number) {
   return mockAnalysisOverrides.get(analysisId)
-    ?? [mockNormalAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
+    ?? [mockNormalAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
 }
 
 function isBackendDocumentType(code: string) {
