@@ -9,7 +9,7 @@ type ChatPanelProps = {
   onClose: () => void
 }
 
-// S10 AI 챗봇 패널 · 구자건 · 보드 13개는 boards.tsx 참고
+// S10 AI 챗봇 패널 · #23 김지희 · 보드 13개는 boards.tsx 참고
 // 와이어프레임 chatPanel()을 옮길 자리. 지금은 제목과 닫기만 있다.
 export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   return (
