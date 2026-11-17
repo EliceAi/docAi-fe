@@ -12,6 +12,7 @@ import { ConfirmPage } from './pages/contract-register/ConfirmPage'
 import { DocumentTypePage } from './pages/contract-register/DocumentTypePage'
 import { MaskPage } from './pages/contract-register/MaskPage'
 import { PreviewPage } from './pages/contract-register/PreviewPage'
+import { RegisterFlowProvider } from './pages/contract-register/RegisterFlowContext'
 import { HomePage } from './pages/home/HomePage'
 import { MyContractDetailPage } from './pages/my-contracts/MyContractDetailPage'
 import { MyContractsPage } from './pages/my-contracts/MyContractsPage'
@@ -24,11 +25,17 @@ import { SchedulesPage } from './pages/schedule/SchedulesPage'
 const appRoutes: RouteObject[] = [
   { path: '/', element: <HomePage /> }, // S00·S01
   { path: '/notifications', element: <NotificationsPage /> }, // P01
-  { path: '/contracts/new', element: <DocumentTypePage /> }, // S02
-  { path: '/contracts/new/capture', element: <CapturePage /> }, // S03
-  { path: '/contracts/new/preview', element: <PreviewPage /> }, // S04
-  { path: '/contracts/new/mask', element: <MaskPage /> }, // S05
-  { path: '/contracts/new/confirm', element: <ConfirmPage /> }, // S06
+  // S02~S06은 고른 문서 종류 같은 값을 화면이 바뀌어도 이어서 쓰도록 RegisterFlowProvider로 감싼다
+  {
+    element: <RegisterFlowProvider><Outlet /></RegisterFlowProvider>,
+    children: [
+      { path: '/contracts/new', element: <DocumentTypePage /> }, // S02
+      { path: '/contracts/new/capture', element: <CapturePage /> }, // S03
+      { path: '/contracts/new/preview', element: <PreviewPage /> }, // S04
+      { path: '/contracts/new/mask', element: <MaskPage /> }, // S05
+      { path: '/contracts/new/confirm', element: <ConfirmPage /> }, // S06
+    ],
+  },
   { path: '/analyses/:analysisId/progress', element: <AnalysisProgressPage /> }, // S07
   { path: '/analyses/:analysisId', element: <AnalysisResultPage /> }, // S08
   { path: '/analyses/:analysisId/clauses/:clauseId', element: <ClauseDetailPage /> }, // S09
