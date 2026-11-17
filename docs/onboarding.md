@@ -22,7 +22,7 @@
 2. **Git**: https://git-scm.com/downloads
 3. **Docker Desktop**: https://www.docker.com/products/docker-desktop → 설치 후 **실행해 두기**(백엔드를 띄울 때 써요. Java·DB는 설치하지 않아도 돼요)
 4. **GitHub CLI**: https://cli.github.com → 설치 후 터미널에서 `gh auth login` (Claude가 이슈·PR을 다룰 때 써요)
-5. **Claude Code**: 설치하고 로그인
+5. **AI 도구 하나**: **Claude Code** 또는 **Codex CLI**(터미널에서 명령을 실행할 수 있는 버전). 설치하고 로그인. 둘 다 이 저장소의 규칙을 자동으로 읽어요(Claude Code는 `CLAUDE.md`, Codex는 `AGENTS.md`)
 6. **GitHub**: 메일로 온 EliceAi 조직 초대를 수락 (7일 지나면 만료돼요)
 
 ## 2. 첫 실행
@@ -73,7 +73,12 @@ npm run dev
 - 이슈 하나 = 화면 하나. 이슈 안의 체크리스트가 만들 보드 목록이에요.
 - 한 이슈를 PR까지 올리고 나면 다음 이슈로 넘어가요. 승인을 기다리는 동안 다음 이슈를 시작해도 돼요.
 
-`docAi-fe` 폴더에서 Claude Code를 켜고 이렇게 말하면 돼요. Claude가 매번 마지막 줄에 다음에 할 말을 알려 줘요.
+`docAi-fe` 폴더에서 Claude Code나 Codex를 켜고 이렇게 말하면 돼요. 매번 마지막 줄에 다음에 할 말을 알려 줘요.
+
+**Codex를 처음 켰을 때**는 이걸 한 번 붙여 넣으면 규칙을 확실히 읽고 시작해요.
+```
+먼저 AGENTS.md, CLAUDE.md, docs/onboarding.md를 읽고 이 저장소 규칙과 "N번 이슈 할게요 / 확인해줘 / PR 올려줘"가 각각 어떤 절차인지 3줄로 요약해줘. 아직 코드는 고치지 마. 그다음 내 담당 이슈 목록을 보여줘. 나는 프론트 개발이 처음이라 쉬운 말로 하나씩 설명하고 단계마다 확인받아 줘.
+```
 
 | 이렇게 말하면 | Claude가 하는 일 |
 |---|---|

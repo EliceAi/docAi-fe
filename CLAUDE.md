@@ -30,7 +30,7 @@
 ## 수정 범위
 - 고쳐도 되는 곳: 이번 이슈 기능의 `src/pages/<기능>/`, `src/api/<기능>.ts`, `src/api/mocks/<기능>.ts`
 - 그 밖의 파일(`src/common/`, 다른 `pages` 폴더, `src/router.tsx`, `src/api/request.ts` 등 공통 API, 설정 파일)은 고치지 말고 멈춰서 "○○ 파일을 고쳐야 하는데 괜찮을까요?"라고 묻는다.
-- `src/pages/analysis/`는 두 사람이 나눠 쓴다(S07 김지희, S08·S09 구자건). `boards.tsx`는 주석으로 나눈 자기 구역만 고친다.
+- 두 사람이 나눠 쓰는 폴더: `analysis/`(S07·S08 김지희, S09 구자건), `schedule/`(S13 김지희, S14 구자건), `comparison/`(S11 구자건, S12 김지희). 이 폴더에서는 이번 이슈 화면의 파일만 고치고, `boards.tsx`는 주석으로 나눈 자기 구역만 고친다.
 
 ## 작업 순서와 스킬
 | 이럴 때 | 스킬 |
