@@ -12,12 +12,14 @@ type HeaderProps = {
   back?: string | false
   /** 챗봇을 열 때 넘길 화면 코드(S01~S15). 화면별 추천 질문에 쓴다 */
   chatFrom?: string
+  /** 챗봇에서 질문할 계약서 ID */
+  contractId?: number
   /** 헤더 아래에 붙는 영역(단계 표시 등) */
   sub?: ReactNode
 }
 
 // 와이어프레임 header(title, options): 상태 표시줄 + 뒤로 · 제목 · 알림 · AI에게 질문
-export function Header({ title = '', home = false, back, chatFrom, sub }: HeaderProps) {
+export function Header({ title = '', home = false, back, chatFrom, contractId, sub }: HeaderProps) {
   const navigate = useNavigate()
   const { openChat } = useAppPanels()
 
@@ -38,7 +40,7 @@ export function Header({ title = '', home = false, back, chatFrom, sub }: Header
           </>
         )}
         <Link className="hi" to="/notifications" aria-label="알림"><Icon name="bell" size={22} /></Link>
-        <a className="ai-chip" role="button" onClick={() => openChat({ from: chatFrom })}>
+        <a className="ai-chip" role="button" onClick={() => openChat({ from: chatFrom, contractId })}>
           <Mascot face={1} size={22} />AI에게 질문
         </a>
       </div>
