@@ -26,6 +26,7 @@ description: docAi-fe에서 PR 전에 작업을 점검할 때 사용한다. "확
 - 화면 주소나 로그에 이름·전화번호·주소 같은 개인정보
 - `.env.local`, 토큰·키처럼 보이는 문자열
 - mock이 빠진 API 함수(`shouldMock` 분기가 없는 함수)나, 이번에 만든 보드 중 mock 데이터 없이는 그려지지 않는 보드. 배포는 mock으로만 돌아간다.
+- PoC 범위: 문서 종류 23종이 모두 mock 데이터에 있는지(근로·임대차 포함), 근로계약서(`EMPLOYMENT`)·임대차계약서(`LEASE`) 외 문서 종류를 고르거나 쓰는 경로가 mock 데이터로 끝까지 그려지는지, 그 외 문서 종류를 위한 실제 API 호출이 없는지. 백엔드 코드와 같은 문서 종류 코드(`EMPLOYMENT`, `LEASE`)를 쓰는지(`LABOR` 같은 다른 이름 금지).
 
 ## 5. 수정 범위
 - `git diff --name-only dev...HEAD`
