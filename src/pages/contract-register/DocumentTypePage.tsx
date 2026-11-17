@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { getDocumentTypes, type DocumentType } from '../../api/documentTypes'
 import { useApiData } from '../../api/useApiData'
@@ -8,8 +8,13 @@ import { useRegisterFlow } from './RegisterFlowContext'
 
 type Lane = DocumentType['lane']
 
+/** 홈의 "내 상황에 맞는 문서 찾기" 칩이 넘기는 값: 그 탭을 열고 그 묶음으로 내려간다 */
+export type DocumentTypeFocus = { lane: Lane; group: string }
+
 const LANES: Lane[] = ['집', '일']
 const SELECT_DOCUMENT_TO = '/contracts/new/capture' // S03
+// 위에 붙어 있는 헤더(84px)와 여백 12px. 이만큼 띄워야 내려간 묶음 제목이 헤더 뒤에 가려지지 않는다
+const STICKY_HEADER_HEIGHT = 96
 // 와이어프레임 "많이 찾는 계약서"
 const POPULAR_DOCUMENTS: { code: string; lane: Lane; note: string }[] = [
   { code: 'LABOR', lane: '일', note: '알바·정규·계약직' },
@@ -32,19 +37,24 @@ export function DocumentTypePage() {
   }
 
   // 검색 결과에서 뒤로 가기(같은 주소로 이동)를 누르면 location.key가 바뀌어 처음 상태로 돌아간다
-  return <DocumentPicker key={location.key} documentTypes={data} />
+  const focus = location.state as DocumentTypeFocus | null
+  return <DocumentPicker key={location.key} documentTypes={data} initialLane={focus?.lane} scrollToGroup={focus?.group} />
 }
 
 type DocumentPickerProps = {
   documentTypes: DocumentType[]
   initialLane?: Lane
   initialQuery?: string
+  /** 화면을 열 때 이 묶음(예: 입주·거주)이 보이게 내려간다 */
+  scrollToGroup?: string
 }
 
 // 와이어프레임 documentPickerScreen · searchResultScreen: 보드에서도 같은 화면을 예시 데이터로 그린다
-export function DocumentPicker({ documentTypes, initialLane = '집', initialQuery = '' }: DocumentPickerProps) {
+export function DocumentPicker({ documentTypes, initialLane = '집', initialQuery = '', scrollToGroup }: DocumentPickerProps) {
   const [lane, setLane] = useState<Lane>(initialLane)
   const [query, setQuery] = useState(initialQuery)
+  const scrollTarget = useRef<HTMLDivElement>(null)
+  useEffect(() => { scrollTarget.current?.scrollIntoView() }, [])
   const { chooseDocumentType } = useRegisterFlow()
   const { openChat } = useAppPanels()
   const isSearching = query.trim() !== ''
@@ -98,7 +108,7 @@ export function DocumentPicker({ documentTypes, initialLane = '집', initialQuer
           </div>
           <div className="note"><GradeTag grade="A" /> 확인할 조항·근거 조문까지 <GradeTag grade="B" /> 공통 항목과 기한</div>
           {groupByName(laneDocuments).map(([groupName, documents]) => (
-            <div key={groupName}>
+            <div key={groupName} ref={groupName === scrollToGroup ? scrollTarget : undefined} style={{ scrollMarginTop: STICKY_HEADER_HEIGHT }}>
               <div className="sec-h">{groupName} {documents.length}</div>
               <div className="card" style={{ padding: '4px 16px' }}>
                 {documents.map(document => (
