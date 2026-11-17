@@ -1,15 +1,21 @@
 import { mockDocumentTypes } from '../../api/mocks/documentTypes'
 import type { Board } from '../../dev/types'
 import { DocumentPicker } from './DocumentTypePage'
+import { CaptureScreen } from './CapturePage'
+
+// 실제 카메라를 켜지 않고 와이어프레임의 촬영 2장 상태를 보여 준다.
+const mockCameraPhotos = [1, 2].map(page => new File([
+  `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="white"/><text x="40" y="80" font-size="24">계약서 예시 ${page}쪽</text></svg>`,
+], `example-${page}.svg`, { type: 'image/svg+xml' }))
 
 // 이 폴더의 와이어프레임 보드. 화면을 만들면 render에 그 보드 상태를 mock 데이터로 그려 연결한다.
 export const contractRegisterBoards: Board[] = [
   { id: 'S02_문서선택_기본', owner: '김지희', path: '/contracts/new', render: () => <DocumentPicker documentTypes={mockDocumentTypes} /> },
   { id: 'S02_문서선택_근로급여', owner: '김지희', path: '/contracts/new', render: () => <DocumentPicker documentTypes={mockDocumentTypes} initialLane="일" /> },
   { id: 'S02_문서선택_검색결과', owner: '김지희', path: '/contracts/new', render: () => <DocumentPicker documentTypes={mockDocumentTypes} initialQuery="보증금" /> },
-  { id: 'S03_입력방식_선택', owner: '김지희', path: '/contracts/new/capture' },
-  { id: 'S03_권한없음', owner: '김지희', path: '/contracts/new/capture' },
-  { id: 'S03_촬영_카메라', owner: '김지희', path: '/contracts/new/capture' },
+  { id: 'S03_입력방식_선택', owner: '김지희', path: '/contracts/new/capture', render: () => <CaptureScreen key="capture-select" documentTypes={mockDocumentTypes} /> },
+  { id: 'S03_권한없음', owner: '김지희', path: '/contracts/new/capture', render: () => <CaptureScreen key="capture-permission" documentTypes={mockDocumentTypes} initialMode="permission" /> },
+  { id: 'S03_촬영_카메라', owner: '김지희', path: '/contracts/new/capture', render: () => <CaptureScreen key="capture-camera" documentTypes={mockDocumentTypes} initialMode="camera" cameraPreviewPhotos={mockCameraPhotos} /> },
   { id: 'S04_미리보기_정상', owner: '김지희', path: '/contracts/new/preview' },
   { id: 'S04_미리보기_흐림누락', owner: '김지희', path: '/contracts/new/preview' },
   { id: 'S04_미리보기_가리기후수정', owner: '김지희', path: '/contracts/new/preview' },
