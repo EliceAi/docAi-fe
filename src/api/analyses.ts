@@ -1,4 +1,4 @@
-import { mockAnalysis, mockClause, mockRequestedAnalysis } from './mocks/analyses'
+import { mockAnalysis, mockClauseDetail, mockRequestedAnalysis } from './mocks/analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 
@@ -44,6 +44,19 @@ export type Clause = {
   lawUrl: string
 }
 
+/** S09 상세 화면. 기존 조항 요약에 원문 위치와 근거·확인 질문을 함께 표시한다. */
+export type ClauseDetail = Clause & {
+  analysisId: number
+  contractId: number
+  documentTitle: string
+  clauseNumber: number
+  locationDescription: string
+  checkReason: string
+  lawText: string
+  lawAsOf: string
+  question: string
+}
+
 /** POST /api/contracts/{contractId}/analyses */
 export function requestAnalysis(contractId: number): Promise<{ analysisId: number; status: AnalysisStatus }> {
   if (shouldMock('requestAnalysis')) return mockResponse({ ...mockRequestedAnalysis })
@@ -69,7 +82,11 @@ export function submitManualInputs(analysisId: number, inputs: { label: string; 
 }
 
 /** GET /api/analyses/{analysisId}/clauses/{clauseId} */
-export function getClause(analysisId: number, clauseId: number): Promise<Clause> {
-  if (shouldMock('getClause')) return mockResponse({ ...mockClause, clauseId })
+export function getClause(analysisId: number, clauseId: number): Promise<ClauseDetail> {
+  if (shouldMock('getClause')) {
+    return analysisId === mockClauseDetail.analysisId && clauseId === mockClauseDetail.clauseId
+      ? mockResponse(mockClauseDetail)
+      : Promise.reject(new Error('조항을 찾을 수 없어요.'))
+  }
   return request(`/api/analyses/${analysisId}/clauses/${clauseId}`)
 }
