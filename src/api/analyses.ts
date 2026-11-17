@@ -1,4 +1,4 @@
-import { mockAnalysis, mockClauseDetail, mockRequestedAnalysis } from './mocks/analyses'
+import { mockClauseDetail, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockNormalAnalysis, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses } from './mocks/analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 
@@ -10,7 +10,7 @@ export type AnalysisStatus = 'IN_PROGRESS' | 'COMPLETED' | 'PARTIAL' | 'FAILED'
 /** 값이 어디서 왔는지: 계약서에 적힘 · 직접 입력 · 조건 검토 필요 */
 export type ValueSource = 'written' | 'typed' | 'review'
 
-export type KeyTerm = { label: string; value: string | null; source: ValueSource }
+export type KeyTerm = { label: string; value: string | null; source: ValueSource; state?: 'warn' | 'miss' | 'unk' }
 
 /** 우선 확인할 조항 */
 export type Finding = {
@@ -20,6 +20,7 @@ export type Finding = {
   summary: string
   lawName: string
   lawUrl: string
+  comparison?: { contractLabel: string; contractValue: string; referenceLabel: string; referenceValue: string }
 }
 
 export type Analysis = {
@@ -34,10 +35,43 @@ export type Analysis = {
   unreadablePages: number[]
 }
 
+/** S08에 표시할 분석 당시의 조건·조항·확인 질문. */
+export type AnalysisResult = Analysis & {
+  documentTypeName?: string
+  version?: number
+  /** 전체 조항·기한 등의 집계 정보가 없는 보관 예시는 수치를 단정하지 않는다. */
+  summaryAvailable?: boolean
+  reviewLabel: string
+  analyzedAt: string
+  readScope: string
+  isSample: boolean
+  checkCount: number
+  missingItems: { title: string; explanation: string }[]
+  clauses: { clauseId: number; number: number; title: string; needsCheck: boolean }[]
+  questions: string[]
+  dateCount: number
+  dateSummary: string
+  clauseCount?: number
+  deadline?: { title: string; explanation: string }
+  unknowns?: { title: string; explanation: string }
+  similarContract?: { contractId: number; title: string; version: number; analyzedAt: string; scheduleCount: number }
+}
+
+const mockAnalysisOverrides = new Map<number, AnalysisResult>()
+
+function findMockAnalysis(analysisId: number) {
+  return mockAnalysisOverrides.get(analysisId)
+    ?? [mockNormalAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
+}
+
+function isBackendDocumentType(code: string) {
+  return code === 'EMPLOYMENT' || code === 'LEASE'
+}
+
 export type Clause = {
   clauseId: number
   title: string
-  pageNo: number
+  pageNo?: number
   originalText: string
   easyExplanation: string
   lawName: string
@@ -49,8 +83,8 @@ export type ClauseDetail = Clause & {
   analysisId: number
   contractId: number
   documentTitle: string
-  clauseNumber: number
-  locationDescription: string
+  clauseNumber?: number
+  locationDescription?: string
   checkReason: string
   lawText: string
   lawAsOf: string
@@ -59,34 +93,59 @@ export type ClauseDetail = Clause & {
 
 /** POST /api/contracts/{contractId}/analyses */
 export function requestAnalysis(contractId: number): Promise<{ analysisId: number; status: AnalysisStatus }> {
+  const mockOnly = mockGeneralAnalyses.find(analysis => analysis.contractId === contractId)
+  if (mockOnly) return mockResponse({ analysisId: mockOnly.analysisId, status: mockOnly.status })
   if (shouldMock('requestAnalysis')) return mockResponse({ ...mockRequestedAnalysis })
   return request(`/api/contracts/${contractId}/analyses`, { method: 'POST' })
 }
 
 /** GET /api/analyses/{analysisId}. S07 분석 중에는 이 응답의 status로 진행 상태를 본다(백엔드에 확인 중) */
-export function getAnalysis(analysisId: number): Promise<Analysis> {
-  if (shouldMock('getAnalysis')) return mockResponse({ ...mockAnalysis, analysisId })
+export function getAnalysis(analysisId: number): Promise<AnalysisResult> {
+  const analysis = findMockAnalysis(analysisId)
+  if ((analysis && !isBackendDocumentType(analysis.documentTypeCode)) || shouldMock('getAnalysis')) {
+    return analysis ? mockResponse(analysis) : Promise.reject(new Error('분석 결과를 찾을 수 없어요.'))
+  }
   return request(`/api/analyses/${analysisId}`)
 }
 
 /** GET /api/analyses/samples/{documentTypeCode}: 홈 "예시 계약서로 먼저 해보기" */
 export function getSampleAnalysis(documentTypeCode: string): Promise<Analysis> {
-  if (shouldMock('getSampleAnalysis')) return mockResponse({ ...mockAnalysis, documentTypeCode })
+  if (!isBackendDocumentType(documentTypeCode) || shouldMock('getSampleAnalysis')) {
+    const analysis = [mockNormalAnalysis, mockLeaseAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.documentTypeCode === documentTypeCode)
+    return analysis ? mockResponse(analysis) : Promise.reject(new Error('예시 분석 결과를 찾을 수 없어요.'))
+  }
   return request(`/api/analyses/samples/${documentTypeCode}`)
 }
 
 /** POST /api/analyses/{analysisId}/manual-inputs: 읽지 못한 칸을 직접 입력 */
-export function submitManualInputs(analysisId: number, inputs: { label: string; value: string }[]): Promise<Analysis> {
-  if (shouldMock('submitManualInputs')) return mockResponse({ ...mockAnalysis, analysisId, status: 'COMPLETED' })
-  return request(`/api/analyses/${analysisId}/manual-inputs`, jsonBody('POST', { inputs }))
+export function submitManualInputs(analysisId: number, inputs: { label: string; value: string }[]): Promise<AnalysisResult> {
+  const values = inputs.map(input => ({ ...input, value: input.value.trim() }))
+  if (values.length === 0 || values.some(input => !input.value)) return Promise.reject(new Error('입력할 값을 확인해 주세요.'))
+  const analysis = findMockAnalysis(analysisId)
+  if ((analysis && !isBackendDocumentType(analysis.documentTypeCode)) || shouldMock('submitManualInputs')) {
+    if (!analysis) return Promise.reject(new Error('분석 결과를 찾을 수 없어요.'))
+    if (values.some(input => !analysis.keyTerms.some(term => term.label === input.label && (term.state === 'unk' || term.source === 'typed')))) {
+      return Promise.reject(new Error('직접 입력할 항목을 확인해 주세요.'))
+    }
+    const updated: AnalysisResult = {
+      ...analysis,
+      keyTerms: analysis.keyTerms.map(term => {
+        const input = values.find(value => value.label === term.label)
+        return input ? { ...term, value: input.value, source: 'typed', state: undefined } : term
+      }),
+    }
+    mockAnalysisOverrides.set(analysisId, updated)
+    return mockResponse(updated)
+  }
+  return request(`/api/analyses/${analysisId}/manual-inputs`, jsonBody('POST', { inputs: values }))
 }
 
 /** GET /api/analyses/{analysisId}/clauses/{clauseId} */
 export function getClause(analysisId: number, clauseId: number): Promise<ClauseDetail> {
-  if (shouldMock('getClause')) {
-    return analysisId === mockClauseDetail.analysisId && clauseId === mockClauseDetail.clauseId
-      ? mockResponse(mockClauseDetail)
-      : Promise.reject(new Error('조항을 찾을 수 없어요.'))
+  const analysis = findMockAnalysis(analysisId)
+  if ((analysis && !isBackendDocumentType(analysis.documentTypeCode)) || shouldMock('getClause')) {
+    const clause = [mockClauseDetail, mockLeaseClauseDetail].find(clause => clause.contractId === analysis?.contractId && clause.clauseId === clauseId)
+    return clause ? mockResponse({ ...clause, analysisId }) : Promise.reject(new Error('조항을 찾을 수 없어요.'))
   }
   return request(`/api/analyses/${analysisId}/clauses/${clauseId}`)
 }
