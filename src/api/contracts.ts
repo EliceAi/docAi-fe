@@ -1,6 +1,7 @@
 import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
+import { getMockSchedules } from './schedules'
 
 // 계약서 등록 응답은 민서 님 브랜치(feat/ELICE-12-contract-registration) 기준, 나머지 상세는 와이어프레임 S06·S15 기준이다.
 
@@ -80,7 +81,13 @@ export function archiveContract(contractId: number): Promise<ContractSummary> {
 
 /** GET /api/contracts: 내 계약서 목록 */
 export function getMyContracts(): Promise<ContractSummary[]> {
-  if (shouldMock('getMyContracts')) return mockResponse(mockMyContracts)
+  if (shouldMock('getMyContracts')) {
+    const schedules = getMockSchedules()
+    return mockResponse(mockMyContracts.map(contract => ({
+      ...contract,
+      scheduleCount: schedules.filter(schedule => schedule.contractId === contract.contractId).length,
+    })))
+  }
   return request('/api/contracts')
 }
 
@@ -88,7 +95,17 @@ export function getMyContracts(): Promise<ContractSummary[]> {
 export function getMyContract(contractId: number): Promise<ContractDetail> {
   if (shouldMock('getMyContract')) {
     const contract = mockContractDetails.find(detail => detail.contractId === contractId)
-    return contract ? mockResponse(contract) : Promise.reject(new Error('계약서를 찾을 수 없어요.'))
+    if (!contract) return Promise.reject(new Error('계약서를 찾을 수 없어요.'))
+    const schedules = getMockSchedules().filter(schedule => schedule.contractId === contractId)
+    return mockResponse({
+      ...contract,
+      scheduleCount: schedules.length,
+      scheduleIds: schedules.map(schedule => schedule.scheduleId),
+      schedules: schedules.map(schedule => ({
+        scheduleId: schedule.scheduleId, title: schedule.title, date: schedule.date,
+        daysLeft: schedule.daysLeft, source: schedule.source ?? 'review',
+      })),
+    })
   }
   return request(`/api/contracts/${contractId}`)
 }
