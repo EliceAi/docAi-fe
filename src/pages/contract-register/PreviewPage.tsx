@@ -157,7 +157,7 @@ export function PreviewScreen({ documentName = '근로계약서', example = fals
   ]} />
 }
 
-function activateButton(event: KeyboardEvent<HTMLElement>) {
+export function activateButton(event: KeyboardEvent<HTMLElement>) {
   const target = event.target as HTMLElement
   if ((event.key === 'Enter' || event.key === ' ') && target.getAttribute('role') === 'button') {
     event.preventDefault()

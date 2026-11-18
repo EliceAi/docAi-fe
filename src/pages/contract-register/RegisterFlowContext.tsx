@@ -1,14 +1,17 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
 /** 가림 좌표는 원본 크기에 대한 0~1 비율이다. */
-export type MaskRegion = { x: number; y: number; width: number; height: number }
+export type MaskRegion = { x: number; y: number; width: number; height: number; /** 가린 곳 목록에 보일 이름(예: 주소). 없으면 번호로 보인다 */ label?: string }
 export type RegisteredPage = { id: string; file: File; masks: MaskRegion[] }
 type PageEdit = { type: 'move'; id: string; to: number } | { type: 'replace'; id: string; file: File } | { type: 'remove'; id: string }
+  | { type: 'mask-add'; id: string; region: MaskRegion; index?: number } | { type: 'mask-remove'; id: string; index: number }
 
 export function editRegisteredPages(pages: RegisteredPage[], edit: PageEdit): RegisteredPage[] {
   const index = pages.findIndex(page => page.id === edit.id)
   if (index === -1) return pages
   if (edit.type === 'remove') return pages.filter(page => page.id !== edit.id)
+  if (edit.type === 'mask-add') return pages.map(page => page.id !== edit.id ? page : { ...page, masks: page.masks.toSpliced(edit.index ?? page.masks.length, 0, edit.region) })
+  if (edit.type === 'mask-remove') return pages.map(page => page.id !== edit.id ? page : { ...page, masks: page.masks.filter((_, i) => i !== edit.index) })
   if (edit.type === 'replace') return pages.map(page => page.id === edit.id ? { ...page, file: edit.file, masks: [] } : page)
   if (!Number.isInteger(edit.to) || edit.to < 0 || edit.to >= pages.length || edit.to === index) return pages
   const reordered = [...pages]
