@@ -1,4 +1,4 @@
-import { mockChatAnswer } from './mocks/chats'
+import { findMockChatAnswer, mockChatAnswer } from './mocks/chats'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 
@@ -16,21 +16,35 @@ export type ChatQuestion = {
   question: string
 }
 
+export type ChatAction = { label: string; to: string }
+
 export type ChatAnswer = {
   conversationId: number
   status: ChatAnswerStatus
+  /** **굵게**와 줄바꿈(\n)만 쓴다 */
   answer: string
   /** 참고한 정보: 내 계약서 · 법령 DB … */
   refs: string[]
-  /** 답변 아래 이동 버튼 */
-  actions: { label: string; to: string }[]
+  /** 답변 아래 이동 버튼. 누를 때만 이동한다 */
+  actions: ChatAction[]
+  /** 답변 뒤에 보여 줄 추천 질문. 없으면 지금 화면의 추천 질문을 그대로 둔다 */
+  followUps?: string[]
+  /** 캐릭터 표정(3 생각 중 등). 없으면 기본 */
+  face?: 1 | 3 | 9
 }
 
-export type ChatMessage = { role: 'me' | 'ai'; text: string; refs?: string[] }
+export type ChatMessage = {
+  role: 'me' | 'ai'
+  text: string
+  refs?: string[]
+  actions?: ChatAction[]
+  status?: ChatAnswerStatus
+  face?: 1 | 3 | 9
+}
 
 /** POST /api/chats/messages */
 export function askChatQuestion(question: ChatQuestion): Promise<ChatAnswer> {
-  if (shouldMock('askChatQuestion')) return mockResponse(mockChatAnswer)
+  if (shouldMock('askChatQuestion')) return findMockChatAnswer(question)
   return request('/api/chats/messages', jsonBody('POST', question))
 }
 
