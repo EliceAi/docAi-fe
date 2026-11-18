@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
 
 /** 가림 좌표는 원본 크기에 대한 0~1 비율이다. */
 export type MaskRegion = { x: number; y: number; width: number; height: number; /** 가린 곳 목록에 보일 이름(예: 주소). 없으면 번호로 보인다 */ label?: string }
@@ -29,30 +29,44 @@ type RegisterFlow = {
   editPage: (edit: PageEdit) => void
   maskingVisited: boolean
   visitMasking: () => void
+  /** S06 최종 확인에 다녀왔는지. S05가 '확인 단계에서 돌아왔어요'를 보여 줄 때 쓴다 */
+  confirmVisited: boolean
+  visitConfirm: () => void
+  /** 같은 쪽·가림이면 같은 키를 돌려준다. 다시 시도해도 계약서가 두 번 만들어지지 않는다 */
+  getIdempotencyKey: (signature: string) => string
 }
 
 // 보드 모아 보기처럼 Provider 밖에서 그려도 오류가 나지 않게, 아무 일도 하지 않는 기본값을 둔다
 const RegisterFlowContext = createContext<RegisterFlow>({
   documentTypeCode: null, chooseDocumentType: () => {}, files: [], addFiles: () => {},
   pages: [], editPage: () => {}, maskingVisited: false, visitMasking: () => {},
+  confirmVisited: false, visitConfirm: () => {}, getIdempotencyKey: () => crypto.randomUUID(),
 })
 
 // 계약서 등록 S02~S06이 함께 쓰는 값. 화면이 바뀌어도 유지된다. 사진·가린 곳은 해당 화면을 만들 때 더한다.
-export function RegisterFlowProvider({ children, initialPages = [], initialMaskingVisited = false, initialDocumentTypeCode = null }: {
+export function RegisterFlowProvider({ children, initialPages = [], initialMaskingVisited = false, initialConfirmVisited = false, initialDocumentTypeCode = null }: {
   children: ReactNode
   initialPages?: RegisteredPage[]
   initialMaskingVisited?: boolean
+  initialConfirmVisited?: boolean
   initialDocumentTypeCode?: string | null
 }) {
   const [documentTypeCode, setDocumentTypeCode] = useState<string | null>(initialDocumentTypeCode)
   const [pages, setPages] = useState<RegisteredPage[]>(initialPages)
   const [maskingVisited, setMaskingVisited] = useState(initialMaskingVisited)
+  const [confirmVisited, setConfirmVisited] = useState(initialConfirmVisited)
+  const idempotencyKey = useRef<{ signature: string; key: string } | null>(null)
   return (
     <RegisterFlowContext.Provider value={{ documentTypeCode, chooseDocumentType: setDocumentTypeCode,
       files: pages.map(page => page.file),
       addFiles: selected => setPages(previous => [...previous, ...selected.map(file => ({ id: crypto.randomUUID(), file, masks: [] }))]),
       pages, editPage: edit => setPages(previous => editRegisteredPages(previous, edit)),
       maskingVisited, visitMasking: () => setMaskingVisited(true),
+      confirmVisited, visitConfirm: () => setConfirmVisited(true),
+      getIdempotencyKey: signature => {
+        if (idempotencyKey.current?.signature !== signature) idempotencyKey.current = { signature, key: crypto.randomUUID() }
+        return idempotencyKey.current.key
+      },
     }}>
       {children}
     </RegisterFlowContext.Provider>

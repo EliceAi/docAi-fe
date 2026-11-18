@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
 import { Button, Header, Icon, Layered, Say, Screen, Sheet, StepBar, StepFooter, Tag, Toast } from '../../common/components'
 import { maskedCounts, objectParticle, regionFromDrag, subjectParticle } from './masking'
 import { activateButton } from './PreviewPage'
@@ -45,9 +44,8 @@ type MaskScreenProps = {
 }
 
 export function MaskScreen({ initialPageIndex = 0, initialZoomTo, initialSheetOpen = false, initialNotice, initialDraft, initialRemoved = [], returned = false }: MaskScreenProps) {
-  const { pages, editPage } = useRegisterFlow()
-  const location = useLocation()
-  const returnedFromConfirm = returned || Boolean(location.state?.returnedFromConfirm)
+  const { pages, editPage, confirmVisited, visitConfirm } = useRegisterFlow()
+  const returnedFromConfirm = returned || confirmVisited
   const [pageIndex, setPageIndex] = useState(initialPageIndex)
   const [zoomMode, setZoomMode] = useState(Boolean(initialZoomTo))
   const [view, setView] = useState<View>(initialZoomTo ? viewCenteredOn(initialZoomTo, 1.6) : FULL_VIEW)
@@ -209,7 +207,7 @@ export function MaskScreen({ initialPageIndex = 0, initialZoomTo, initialSheetOp
   const screen = (
     <Screen header={<Header title="개인정보 가리기" back="/contracts/new/preview" chatFrom="S05"
       sub={<StepBar current={3} finishedAhead={returnedFromConfirm ? [4] : []} />} />}
-      footer={<StepFooter current={3} nextLabel={isEmptyLaterPage ? '가릴 곳 없음, 다음: 확인' : '다음: 확인'} nextTo="/contracts/new/confirm" />}>
+      footer={<StepFooter current={3} nextLabel={isEmptyLaterPage ? '가릴 곳 없음, 다음: 확인' : '다음: 확인'} nextTo="/contracts/new/confirm" onNext={visitConfirm} />}>
       {say}
       <div ref={viewport} role="img" aria-label={`${pageIndex + 1}쪽 계약서 사진. 가리기 모드에서 끌면 가릴 곳이 정해져요`}
         style={{ position: 'relative', overflow: 'hidden', touchAction: 'none', userSelect: 'none', borderRadius: 10, border: '1px solid #DDE1E6', background: '#fff' }}
