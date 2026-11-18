@@ -1,8 +1,25 @@
-import type { Analysis, AnalysisResult, AnalysisStatus, Clause, ClauseDetail } from '../analyses'
+import type { Analysis, AnalysisProgress, AnalysisResult, AnalysisStatus, Clause, ClauseDetail } from '../analyses'
 import { mockDocumentTypes } from './documentTypes'
 import { mockContractDetails } from './contracts'
 
 export const mockRequestedAnalysis: { analysisId: number; status: AnalysisStatus } = { analysisId: 1, status: 'IN_PROGRESS' }
+
+/** 이 번호의 분석은 실패한다. /analyses/999/progress 로 실패 화면을 볼 수 있다 */
+export const mockFailedAnalysisId = 999
+
+export const mockFailedProgress: AnalysisProgress = {
+  analysisId: mockFailedAnalysisId,
+  contractId: 100, // 다시 시도하면 mock 계약서(분석 mock 번호 100번대)로 새 분석을 요청한다
+  status: 'FAILED',
+  documentTypeName: '근로계약서',
+  pageCount: 2,
+  completedSteps: 2,
+  failures: [
+    { kind: 'BLURRY', title: '사진이 흐려요', text: '2쪽 글자를 읽을 수 없었어요.', pageNo: 2 },
+    { kind: 'TYPE_MISMATCH', title: '고른 종류와 달라 보여요', text: '근로계약서가 아니라 임대차계약서처럼 보여요.' },
+    { kind: 'TEMPORARY', title: '잠시 문제가 생겼어요', text: '가린 이미지는 그대로 있어요.' },
+  ],
+}
 
 // 보드 상태별 응답(일부 확인 필요, 임대차 등)은 화면 담당자가 이 파일에 추가한다
 export const mockAnalysis: Analysis = {
