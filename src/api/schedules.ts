@@ -1,4 +1,4 @@
-import { mockAdditionalSchedules, mockScheduleCandidates, mockScheduleChanges, mockSchedules, mockScheduleToday, mockStoredSchedules } from './mocks/schedules'
+import { mockAdditionalSchedules, mockConflictAnalysisId, mockConflictCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet, mockSchedules, mockScheduleToday, mockStoredSchedules } from './mocks/schedules'
 import type { ValueSource } from './analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
@@ -41,7 +41,8 @@ function validScheduleId(scheduleId: number) {
   return Number.isSafeInteger(scheduleId) && scheduleId > 0
 }
 
-function normalizeDate(value: string) {
+/** '2026.12.01' 또는 '2026-12-01'을 '2026-12-01'로. 없는 날짜면 null */
+export function normalizeDate(value: string) {
   const normalized = value.replaceAll('.', '-')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null
   const date = new Date(normalized + 'T00:00:00Z')
@@ -56,22 +57,30 @@ export type ScheduleCandidate = {
   source: ValueSource
   /** 계약서 어디에 적혀 있는지 (1쪽 제1조) */
   where: string
+  /** 처음부터 체크해 둘지. 종료일처럼 알림이 필요 없을 수 있는 일정은 false */
+  recommended: boolean
 }
 
-/** 수정본 확정으로 바뀌는 일정 */
-export type ScheduleChange = { scheduleId: number; title: string; beforeDate: string; afterDate: string }
+/** S13 일정 등록: 분석 결과에서 찾은 날짜 후보와 어느 계약서인지 */
+export type ScheduleCandidateSet = { analysisId: number; contractId: number; contractTitle: string; candidates: ScheduleCandidate[] }
+
+/** 수정본 확정으로 바뀌는 일정. scheduleId가 null이면 수정본에서 새로 생기는 일정 */
+export type ScheduleChange = { scheduleId: number | null; title: string; beforeDate: string | null; afterDate: string; source: ValueSource; note?: string }
+
+/** S13 변경 등록: 수정본(v2)에 맞춰 바뀌는 일정 */
+export type ScheduleChangeSet = { comparisonId: number; contractId: number; contractTitle: string; fromVersion: number; toVersion: number; changes: ScheduleChange[] }
 
 export type NewSchedule = { title: string; date: string; source: ValueSource }
 
 /** GET /api/analyses/{analysisId}/schedule-candidates */
-export function getScheduleCandidates(analysisId: number): Promise<ScheduleCandidate[]> {
-  if (shouldMock('getScheduleCandidates')) return mockResponse(mockScheduleCandidates)
+export function getScheduleCandidates(analysisId: number): Promise<ScheduleCandidateSet> {
+  if (shouldMock('getScheduleCandidates')) return mockResponse({ ...(analysisId === mockConflictAnalysisId ? mockConflictCandidateSet : mockScheduleCandidateSet), analysisId })
   return request(`/api/analyses/${analysisId}/schedule-candidates`)
 }
 
 /** GET /api/comparisons/{comparisonId}/schedule-changes */
-export function getScheduleChanges(comparisonId: number): Promise<ScheduleChange[]> {
-  if (shouldMock('getScheduleChanges')) return mockResponse(mockScheduleChanges)
+export function getScheduleChanges(comparisonId: number): Promise<ScheduleChangeSet> {
+  if (shouldMock('getScheduleChanges')) return mockResponse({ ...mockScheduleChangeSet, comparisonId })
   return request(`/api/comparisons/${comparisonId}/schedule-changes`)
 }
 

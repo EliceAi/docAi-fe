@@ -152,7 +152,7 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
 
   const content = (
     <Screen header={<Header title="분석 결과" back="/" chatFrom="S08" contractId={analysis.contractId} />}
-            footer={<Footer><Button to="/schedules/new">일정 확인하고 저장</Button></Footer>}>
+            footer={<Footer><Button to={`/schedules/new?analysisId=${analysis.analysisId}`}>일정 확인하고 저장</Button></Footer>}>
       <div>
         <div className="row"><b style={{ fontSize: 21 }}>{analysis.documentTitle}</b>{analysis.isSample && <Tag>예시</Tag>}{analysis.version ? <Tag>v{analysis.version}</Tag> : null}</div>
         <div className="mut">{[
