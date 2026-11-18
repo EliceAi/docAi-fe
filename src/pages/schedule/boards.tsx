@@ -1,5 +1,6 @@
 import type { Board } from '../../dev/types'
-import { mockEmptySchedules, mockSchedules } from '../../api/mocks/schedules'
+import { mockConflictCandidateSet, mockEmptySchedules, mockScheduleCandidateSet, mockScheduleChangeSet, mockSchedules } from '../../api/mocks/schedules'
+import { ScheduleChangeView, ScheduleNewView } from './ScheduleRegisterPage'
 import { SchedulesView } from './SchedulesPage'
 import { ScheduleDetailView } from './ScheduleDetailPage'
 
@@ -7,10 +8,10 @@ import { ScheduleDetailView } from './ScheduleDetailPage'
 // 화면을 만들면 render에 그 보드 상태를 mock 데이터로 그려 연결한다.
 export const scheduleBoards: Board[] = [
   // S13 일정 등록 · #20 김지희
-  { id: 'S13_일정등록_신규', owner: '김지희', path: '/schedules/new' },
-  { id: 'S13_일정등록_날짜누락충돌', owner: '김지희', path: '/schedules/new' },
-  { id: 'S13_일정등록_저장실패', owner: '김지희', path: '/schedules/new' },
-  { id: 'S13_일정등록_변경등록', owner: '김지희', path: '/schedules/new' },
+  { id: 'S13_일정등록_신규', owner: '김지희', path: '/schedules/new', render: () => <ScheduleNewView key="register-new" data={mockScheduleCandidateSet} /> },
+  { id: 'S13_일정등록_날짜누락충돌', owner: '김지희', path: '/schedules/new?analysisId=5', render: () => <ScheduleNewView key="register-conflict" data={mockConflictCandidateSet} initialChosen={{ '계약 종료일': 1 }} /> },
+  { id: 'S13_일정등록_저장실패', owner: '김지희', path: '/schedules/new', render: () => <ScheduleNewView key="register-failed" data={mockScheduleCandidateSet} initialFailed /> },
+  { id: 'S13_일정등록_변경등록', owner: '김지희', path: '/schedules/new?comparisonId=1', render: () => <ScheduleChangeView key="register-change" data={mockScheduleChangeSet} /> },
 
   // S14 내 일정 · #19 구자건
   { id: 'S14_내일정_목록', owner: '구자건', path: '/schedules', render: () => <SchedulesView key="schedule-list" schedules={mockSchedules} showSaved /> },
