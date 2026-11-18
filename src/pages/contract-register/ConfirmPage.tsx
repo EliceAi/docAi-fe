@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { requestAnalysis as requestContractAnalysis } from '../../api/analyses'
 import { reanalyseComparisonPage } from '../../api/comparisons'
+import { reuploadPage } from '../../api/contracts'
 import { Button, Dialog, Header, Icon, Layered, Screen, StepBar, StepFooter, Tag } from '../../common/components'
 import { pagesSignature, registerContract } from './registerContract'
 import { createMaskedImage, maskedCounts } from './masking'
@@ -15,7 +17,7 @@ export function ConfirmPage() {
 const CHECK_ITEMS = ['이름·주민번호·연락처·주소를 가렸어요', '시급·근로시간·날짜는 보여요']
 
 export function ConfirmScreen({ initialFailed = false }: { initialFailed?: boolean }) {
-  const { pages, documentTypeCode, getIdempotencyKey, comparisonRecapture } = useRegisterFlow()
+  const { pages, documentTypeCode, getIdempotencyKey, pageRecapture, setPageRecapture } = useRegisterFlow()
   const navigate = useNavigate()
   const [checked, setChecked] = useState([true, true])
   const [failed, setFailed] = useState(initialFailed)
@@ -27,12 +29,20 @@ export function ConfirmScreen({ initialFailed = false }: { initialFailed?: boole
     setSending(true)
     setFailed(false)
     try {
-      if (comparisonRecapture) {
+      if (pageRecapture?.contractId) {
+        // 명세: 그 쪽만 가린 이미지로 바꾸고(페이지 재업로드) 다시 분석한다
         if (pages.length !== 1) throw new Error('다시 찍을 쪽은 한 장만 골라 주세요.')
         const maskedPage = await createMaskedImage(pages[0].file, pages[0].masks)
-        const result = await reanalyseComparisonPage(comparisonRecapture.comparisonId, comparisonRecapture.pageNo, maskedPage, maskedCounts(pages)[0])
+        await reuploadPage(pageRecapture.contractId, pageRecapture.pageNo, maskedPage, maskedCounts(pages)[0])
+        const analysis = await requestContractAnalysis(pageRecapture.contractId)
+        setPageRecapture(null)
+        navigate(`/analyses/${analysis.analysisId}/progress`, { replace: true })
+      } else if (pageRecapture?.comparisonId) {
+        if (pages.length !== 1) throw new Error('다시 찍을 쪽은 한 장만 골라 주세요.')
+        const maskedPage = await createMaskedImage(pages[0].file, pages[0].masks)
+        const result = await reanalyseComparisonPage(pageRecapture.comparisonId, pageRecapture.pageNo, maskedPage, maskedCounts(pages)[0])
         navigate(`/comparisons/${result.comparisonId}`, { replace: true,
-          ...(comparisonRecapture.analysisId ? { state: { analysisId: comparisonRecapture.analysisId } } : {}) })
+          ...(pageRecapture.analysisId ? { state: { analysisId: pageRecapture.analysisId } } : {}) })
       } else {
         const analysisId = await registerContract(pages, documentTypeCode, getIdempotencyKey(pagesSignature(pages)))
         navigate(`/analyses/${analysisId}/progress`)

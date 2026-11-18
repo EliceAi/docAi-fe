@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { askChatQuestion, type ChatAction, type ChatMessage } from '../../api/chats'
+import { askChatQuestion, getChatMessages, loadLastConversationId, saveLastConversationId, type ChatAction, type ChatMessage } from '../../api/chats'
 import { getMyContract } from '../../api/contracts'
 import { mockGreeting } from '../../api/mocks/chats'
 import { useApiData } from '../../api/useApiData'
@@ -25,7 +25,16 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [pending, setPending] = useState<ChatAction | null>(null)
-  const conversationId = useRef<number | undefined>(undefined)
+  const conversationId = useRef<number | undefined>(loadLastConversationId())
+
+  // 다시 열면 마지막 대화를 이어 보여 준다(명세: 대화 기록 조회)
+  useEffect(() => {
+    const lastId = conversationId.current
+    if (!lastId) return
+    let active = true
+    getChatMessages(lastId).then(history => { if (active && history.length) setMessages([mockGreeting, ...history]) }).catch(() => { /* 기록을 못 받아도 새 대화로 시작한다 */ })
+    return () => { active = false }
+  }, [])
   const failedQuestion = useRef('')
   const { data: contract } = useApiData(() => opening.contractId ? getMyContract(opening.contractId) : Promise.resolve(null), [opening.contractId])
   const linkedDoc = contract ? `${contract.title} (${contract.savedAt.slice(5).replace('-', '.')} 분석)` : undefined
@@ -40,6 +49,7 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
     try {
       const answer = await askChatQuestion({ conversationId: conversationId.current, contractId: opening.contractId, screen: opening.from, question: text })
       conversationId.current = answer.conversationId
+      saveLastConversationId(answer.conversationId)
       setMessages(list => [...list, { role: 'ai', text: answer.answer, refs: answer.refs, actions: answer.actions, status: answer.status, face: answer.face }])
       setChips(answer.followUps ?? SUGGESTED_QUESTIONS[opening.from ?? ''] ?? [])
     } catch {
@@ -53,7 +63,7 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   }
 
   function leave(action: ChatAction) {
-    navigate(action.to)
+    navigate(action.to, action.state ? { state: action.state } : undefined)
     onClose()
   }
 

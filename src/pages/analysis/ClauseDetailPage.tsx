@@ -85,7 +85,7 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
         </a>
       )}
       <div className="row">
-        <Tag color="red" icon="warn">확인 필요</Tag><b>{hasClauseNumber && `제${clause.clauseNumber}조 `}{clause.title}</b>
+        {clause.needsCheck !== false && <Tag color="red" icon="warn">확인 필요</Tag>}<b>{hasClauseNumber && `제${clause.clauseNumber}조 `}{clause.title}</b>
         <span className="mut" style={{ marginLeft: 'auto' }}>{clause.documentTitle}</span>
       </div>
       <div className="card">
@@ -101,8 +101,9 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
         {(hasPage || clause.locationDescription) && <div className="mut" style={{ marginTop: 6 }}>위치: {hasPage && `${clause.pageNo}쪽 `}{clause.locationDescription}</div>}
       </div>
       <div className="card"><div className="h2">쉬운 설명</div>{clause.easyExplanation}</div>
-      <div className="card"><div className="h2">왜 확인이 필요해요</div>{clause.checkReason}</div>
-      <div className="card">
+      {clause.checkReason && <div className="card"><div className="h2">왜 확인이 필요해요</div>{clause.checkReason}</div>}
+      {/* 근거 조문을 찾지 못한 조항(UNCERTAIN)이나 문제없는 조항은 법령 칸을 보여 주지 않는다(명세) */}
+      {clause.lawName && <div className="card">
         <div className="h2"><Mascot face={4} size={26} /> 근거 법령</div>
         <div className="lawbox"><b>{clause.lawName}</b><br />{clause.lawText}</div>
         <div className="srcbox">
@@ -110,8 +111,8 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
           <LawSourceLink url={clause.lawUrl} className="btn l">법령 원문 보기 ↗</LawSourceLink>
         </div>
         <div className="warnline"><Icon name="info" size={14} /> 위 설명은 AI가 법령을 해석한 거예요. AI도 실수할 수 있으니 원문 법령을 함께 확인해 주세요.</div>
-      </div>
-      <div className="card">
+      </div>}
+      {clause.question && <div className="card">
         <div className="h2">상대방에게 확인할 것</div>
         <div className="quote">
           <span>{clause.question}</span>
@@ -120,7 +121,7 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
             <Icon name="copy" size={16} />
           </span>
         </div>
-      </div>
+      </div>}
       {copyMessage && <div role="status"><Toast>{copyMessage}</Toast></div>}
     </Screen>
   )

@@ -2,6 +2,9 @@ import { mockGeneralAnalyses } from './mocks/analyses'
 import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
+import { ApiError } from './http'
+import { getAccessToken, renewAccessToken } from './users'
+import { toMyContractDetail, toMyContracts } from './backendResponses'
 import { getMockSchedules } from './schedules'
 
 // 계약서 등록(createContract)은 백엔드와 확인을 마쳤다. 나머지 상세는 와이어프레임 S06·S15 기준이다.
@@ -63,14 +66,14 @@ export function createContract(input: CreateContractInput, idempotencyKey: strin
 }
 
 /** PATCH /api/contracts/{contractId} */
-export function changeDocumentType(contractId: number, documentTypeCode: string): Promise<CreatedContract> {
+export function changeDocumentType(contractId: number, documentTypeCode: string): Promise<Pick<CreatedContract, 'contractId' | 'documentTypeCode' | 'status'>> {
   if (shouldMock('changeDocumentType')) return mockResponse({ ...mockCreatedContract, contractId, documentTypeCode })
   return request(`/api/contracts/${contractId}`, jsonBody('PATCH', { documentTypeCode }))
 }
 
 /** PUT /api/contracts/{contractId}/pages/{pageNo}: 흐린 쪽만 다시 찍어 올린다 */
-export function reuploadPage(contractId: number, pageNo: number, page: Blob, maskedCount: number): Promise<CreatedContract> {
-  if (shouldMock('reuploadPage')) return mockResponse({ ...mockCreatedContract, contractId })
+export function reuploadPage(contractId: number, pageNo: number, page: Blob, maskedCount: number): Promise<{ contractId: number; pageNo: number; pageCount: number; status: string }> {
+  if (shouldMock('reuploadPage')) return mockResponse({ contractId, pageNo, pageCount: mockCreatedContract.pageCount, status: 'DRAFT' })
   const form = new FormData()
   form.append('page', page, `page-${pageNo}.png`)
   form.append('maskedCount', String(maskedCount))
@@ -78,9 +81,19 @@ export function reuploadPage(contractId: number, pageNo: number, page: Blob, mas
 }
 
 /** POST /api/contracts/{contractId}/archive: 내 계약서에 보관 */
-export function archiveContract(contractId: number): Promise<ContractSummary> {
-  if (shouldMock('archiveContract')) return mockResponse(mockMyContracts.find(contract => contract.contractId === contractId) ?? { ...mockMyContracts[1], contractId })
-  return request(`/api/contracts/${contractId}/archive`, { method: 'POST' })
+/** 보관할 때 함께 저장할 일정(명세). 일정 없이 보관이면 빈 배열 */
+export type ArchiveSchedule = { candidateId: number | null; title: string; date: string; source: 'WRITTEN' | 'MANUAL' | 'REVIEW' }
+export type ArchiveResult = { contractId: number; archived: boolean; version: number; savedSchedules: { scheduleId: number; title: string; date: string }[] }
+
+/**
+ * POST /api/contracts/{contractId}/archive: 내 계약서에 보관하면서 고른 일정을 한 번에 저장한다(명세).
+ * 같은 Idempotency-Key로 다시 보내면 서버가 처음 결과를 돌려줘 일정이 두 번 저장되지 않는다.
+ */
+export function archiveContract(contractId: number, schedules: ArchiveSchedule[], idempotencyKey: string): Promise<ArchiveResult> {
+  if (shouldMock('archiveContract')) {
+    return mockResponse({ contractId, archived: true, version: 1, savedSchedules: schedules.map((schedule, index) => ({ scheduleId: 1000 + index, title: schedule.title, date: schedule.date })) })
+  }
+  return request(`/api/contracts/${contractId}/archive`, { ...jsonBody('POST', { schedules }), headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey } })
 }
 
 /** GET /api/contracts: 내 계약서 목록 */
@@ -92,7 +105,7 @@ export function getMyContracts(): Promise<ContractSummary[]> {
       scheduleCount: schedules.filter(schedule => schedule.contractId === contract.contractId).length,
     })))
   }
-  return request('/api/contracts')
+  return request<Parameters<typeof toMyContracts>[0]>('/api/contracts').then(toMyContracts)
 }
 
 /** GET /api/contracts/{contractId} */
@@ -111,13 +124,23 @@ export function getMyContract(contractId: number): Promise<ContractDetail> {
       })),
     })
   }
-  return request(`/api/contracts/${contractId}`)
+  return request<Parameters<typeof toMyContractDetail>[0]>(`/api/contracts/${contractId}`).then(toMyContractDetail)
 }
 
+// mock 원문 보기용 회색 종이 이미지
+const MOCK_PAGE_IMAGE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800"><rect width="600" height="800" fill="#fff"/><g fill="#C5CAD1">' + Array.from({ length: 14 }, (_, i) => `<rect x="48" y="${90 + i * 46}" width="${i % 3 ? 500 : 360}" height="14" rx="4"/>`).join('') + '</g></svg>')
+
 /**
- * GET /api/contracts/{contractId}/pages/{pageNo}: 가린 쪽 이미지
- * 이미지 응답이라 공통 응답(JSON)과 모양이 다르다. 백엔드 API가 나오면 test-api로 받는 방법을 정한다.
+ * GET /api/contracts/{contractId}/pages/{pageNo}: 가린 쪽 이미지(JPEG)
+ * 토큰이 필요해 이미지 태그 주소로 바로 쓸 수 없다. 토큰을 붙여 받은 뒤 화면에서 쓸 주소(blob:)로 바꿔 돌려준다.
+ * 다 쓴 주소는 URL.revokeObjectURL로 정리한다.
  */
-export function getContractPageImageUrl(contractId: number, pageNo: number): string {
-  return `/api/contracts/${contractId}/pages/${pageNo}`
+export async function loadContractPageImage(contractId: number, pageNo: number, version?: number): Promise<string> {
+  if (shouldMock('loadContractPageImage')) return MOCK_PAGE_IMAGE
+  const path = `/api/contracts/${contractId}/pages/${pageNo}${version ? `?version=${version}` : ''}`
+  const load = async (token: string) => fetch(path, { headers: { Authorization: `Bearer ${token}` } })
+  let response = await load(await getAccessToken())
+  if (response.status === 401) response = await load(await renewAccessToken())
+  if (!response.ok) throw new ApiError(response.status, null, '원본 이미지를 불러오지 못했어요.')
+  return URL.createObjectURL(await response.blob())
 }

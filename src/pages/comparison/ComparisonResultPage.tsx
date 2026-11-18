@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { confirmComparison, discardComparison, getComparison, submitComparisonInputs, type Change, type Comparison, type UnreadComparisonField } from '../../api/comparisons'
+import { discardComparison, getComparison, submitComparisonInputs, type Change, type Comparison, type UnreadComparisonField } from '../../api/comparisons'
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Footer, Header, Icon, Layered, Screen, Sheet, Tag } from '../../common/components'
 import './comparison-result.css'
@@ -95,9 +95,8 @@ function ComparisonResultContent({ initialComparison, initialPanel }: { initialC
         const updated = await submitComparisonInputs(comparison.comparisonId, [{ label: field!.label, value: input }])
         if (active.current) { setComparison(updated); setPanel(null) }
       } else if (action === 'confirm') {
-        const result = await confirmComparison(comparison.comparisonId)
-        if (active.current) navigate('/schedules/new', { state: { ...preparationState, comparisonId: comparison.comparisonId,
-          contractId: result.contractId, version: result.version, mode: 'change' } })
+        // 확정(v2 보관)과 일정 변경은 S13 "바꿔서 저장"에서 한 번에 한다. 여기서는 이동만 한다(PR #38 결정, 명세)
+        if (active.current) navigate(`/schedules/new?comparisonId=${comparison.comparisonId}`)
       } else {
         await discardComparison(comparison.comparisonId)
         if (active.current) navigate('/', { replace: true })

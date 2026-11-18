@@ -1,6 +1,7 @@
 import { mockDocumentTypes } from './mocks/documentTypes'
 import { mockResponse, shouldMock } from './mock-mode'
 import { request } from './request'
+import { toDocumentTypes } from './backendResponses'
 
 // 응답 상세는 API 명세에 아직 없다. 와이어프레임 S02 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
 
@@ -28,5 +29,6 @@ export type DocumentType = {
 /** GET /api/document-types */
 export function getDocumentTypes(): Promise<DocumentType[]> {
   if (shouldMock('getDocumentTypes')) return mockResponse(mockDocumentTypes)
-  return request('/api/document-types')
+  // 서버는 그룹형으로 준다. 서버에 없는 검색어·긴급 안내는 같은 코드의 mock에서 붙인다
+  return request<Parameters<typeof toDocumentTypes>[0]>('/api/document-types').then(data => toDocumentTypes(data, mockDocumentTypes))
 }

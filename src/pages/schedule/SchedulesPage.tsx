@@ -39,7 +39,9 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
   const selected = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && dateKey(scheduleDate(requestedDate)) === requestedDate ? requestedDate : initialDate
   const requestedMonth = params.get('month')
   const month = requestedMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth) ? requestedMonth : selected.slice(0, 7)
-  const [savedVisible, setSavedVisible] = useState(showSaved || location.state?.schedulesSaved === true)
+  const [savedVisible, setSavedVisible] = useState(showSaved || location.state?.schedulesSaved === true || typeof location.state?.schedulesSaved === 'number')
+  // S13에서 저장한 일정 수. 보드처럼 개수를 모를 때는 와이어프레임 예시대로 3개로 보여 준다
+  const savedCount: number = typeof location.state?.schedulesSaved === 'number' ? location.state.schedulesSaved : 3
 
   useEffect(() => {
     if (!savedVisible || showSaved) return
@@ -121,7 +123,7 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
               {selectedSchedules.map(schedule => <ScheduleEntry key={schedule.scheduleId} schedule={schedule} />)}
             </div> : <div className="note" role="status">이날은 등록한 일정이 없어요.</div>}
           </>}
-          {savedVisible && view === 'list' && <div className="toast" role="status"><Mascot face={6} size={30} /><span>일정 3개를 저장하고 계약서를 보관했어요<br /><span style={{ color: 'var(--line)', fontSize: 11 }}>저장 직후에만 잠깐 보여요</span></span></div>}
+          {savedVisible && view === 'list' && <div className="toast" role="status"><Mascot face={6} size={30} /><span>일정 {savedCount}개를 저장하고 계약서를 보관했어요<br /><span style={{ color: 'var(--line)', fontSize: 11 }}>저장 직후에만 잠깐 보여요</span></span></div>}
         </>}
       </Screen>
     </div>

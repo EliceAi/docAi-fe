@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { createComparison, getComparisonDocuments, previewComparison, type ComparisonDocument, type ComparisonPreview } from '../../api/comparisons'
-import { mockPartialComparisonPreview, mockUnavailableComparisonPreview } from '../../api/mocks/comparisons'
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Footer, Header, Icon, Layered, Say, Screen } from '../../common/components'
 import './comparison-prepare.css'
@@ -95,10 +94,6 @@ export function ComparisonPrepareView({ documents: initialDocuments, initialPrev
     <a className="chip" role="button" tabIndex={0} style={{ alignSelf: 'center' }} onClick={swap} aria-disabled={saving}><Icon name="swap" size={16} /> 순서 바꾸기</a>
     <VersionCard document={documents[1]} label="수정본" />
     <div className="note"><Icon name="lock" size={14} /> 두 문서 모두 가린 이미지로 비교해요. 가린 곳은 비교하지 않아요.</div>
-    <div className="row" style={{ gap: 6 }}>
-      <a className="chip" role="button" tabIndex={0} onClick={() => { if (!busy.current) { setError(''); setPreview(mockPartialComparisonPreview) } }}>(쪽 수가 다를 때 화면)</a>
-      <a className="chip" role="button" tabIndex={0} onClick={() => { if (!busy.current) { setError(''); setPreview(mockUnavailableComparisonPreview) } }}>(종류가 다를 때 화면)</a>
-    </div>
     {!preview && error && <div className="warnb" role="alert">{error}</div>}
   </Screen>
 

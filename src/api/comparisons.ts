@@ -1,8 +1,10 @@
+import { mockDocumentTypes } from './mocks/documentTypes'
 import { mockComparisonDocuments, mockComparisonPreview, mockComparisonResults } from './mocks/comparisons'
 import { getMyContract, reuploadPage } from './contracts'
 import { getAnalysisProgress, requestAnalysis } from './analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
+import { toComparison, toComparisonPreview, type BackendComparison } from './backendResponses'
 
 // 응답 상세는 API 명세에 아직 없다. 와이어프레임 S11·S12 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
 
@@ -22,6 +24,8 @@ export type Change = {
 }
 
 export type UnreadComparisonField = {
+  /** 직접 입력할 때 보내는 비교 못 한 곳 번호(명세). mock 예시는 없을 수 있다 */
+  uncomparedId?: number
   label: string
   location: string
   title: string
@@ -64,7 +68,7 @@ export async function getComparisonDocuments(previous: number, current: number):
     const contract = await getMyContract(contractId)
     return {
       contractId, documentTypeCode: contract.documentTypeCode,
-      documentTypeName: contract.documentTypeCode === 'LEASE' ? '임대차계약서' : '근로계약서',
+      documentTypeName: mockDocumentTypes.find(type => type.code === contract.documentTypeCode)?.name ?? '계약서',
       title: contract.title, version: contract.version, analyzedAt: contract.savedAt.slice(5).replace('-', '.'), pageCount: contract.pageCount || null,
     }
   }
@@ -179,8 +183,13 @@ export function previewComparison(previousContractId: number, currentContractId:
     })
     return mockResponse(mockComparisonPreview)
   }
-  return request(`/api/comparisons/preview?previousContractId=${previousContractId}&currentContractId=${currentContractId}`)
+  // 명세 파라미터 이름은 revisedContractId(수정본)다
+  return request<Parameters<typeof toComparisonPreview>[0]>(`/api/comparisons/preview?previousContractId=${previousContractId}&revisedContractId=${currentContractId}`).then(toComparisonPreview)
 }
+
+// 비교 응답에는 이전본·수정본 계약서 번호가 없다(명세). 비교를 만들 때 알던 번호를 기억해 두고 결과에 붙인다
+const comparisonContracts = new Map<number, { previousContractId: number; currentContractId: number }>()
+export const knownComparisonContracts = (comparisonId: number) => comparisonContracts.get(comparisonId)
 
 /** POST /api/comparisons: 수정본 비교 */
 export async function createComparison(previousContractId: number, currentContractId: number): Promise<{ comparisonId: number }> {
@@ -210,14 +219,17 @@ export async function createComparison(previousContractId: number, currentContra
     persistCreatedResults()
     return mockResponse({ comparisonId })
   }
-  return request('/api/comparisons', jsonBody('POST', { previousContractId, currentContractId }))
+  const data = await request<BackendComparison>('/api/comparisons', jsonBody('POST', { previousContractId, revisedContractId: currentContractId }))
+  comparisonContracts.set(data.comparisonId, { previousContractId, currentContractId })
+  return { comparisonId: data.comparisonId }
 }
 
 /** GET /api/comparisons/{comparisonId} */
 export async function getComparison(comparisonId: number): Promise<Comparison> {
   validComparisonId(comparisonId)
   if (mockOnlyResult(comparisonId) || shouldMock('getComparison')) return mockResponse(readMockResult(comparisonId))
-  return request(`/api/comparisons/${comparisonId}`)
+  const data = await request<BackendComparison>(`/api/comparisons/${comparisonId}`)
+  return toComparison(data, comparisonContracts.get(comparisonId) ?? { previousContractId: 0, currentContractId: 0 })
 }
 
 /** POST /api/comparisons/{comparisonId}/manual-inputs: 비교하지 못한 칸 직접 입력 */
@@ -245,17 +257,33 @@ export async function submitComparisonInputs(comparisonId: number, inputs: { lab
     saveMockResult(result)
     return mockResponse(result)
   }
-  return request(`/api/comparisons/${comparisonId}/manual-inputs`, jsonBody('POST', { inputs }))
+  // 명세는 비교 못 한 곳 번호(uncomparedId)와 문장 한 개씩 받는다. 화면이 넘긴 칸 이름으로 번호를 찾아 보낸다
+  const current = await getComparison(comparisonId)
+  for (const input of inputs) {
+    const field = current.unreadFields?.find(field => field.label === input.label)
+    if (!field?.uncomparedId) throw new Error('직접 입력할 칸을 확인해 주세요.')
+    await request(`/api/comparisons/${comparisonId}/manual-inputs`, jsonBody('POST', { uncomparedId: field.uncomparedId, text: input.value.trim() }))
+  }
+  return getComparison(comparisonId)
 }
 
-/** POST /api/comparisons/{comparisonId}/confirm: 수정본으로 확정(v2) */
-export async function confirmComparison(comparisonId: number): Promise<{ contractId: number; version: number }> {
+/** 수정본 확정 때 함께 바꿀 일정(명세). UPDATE·DELETE는 이전본 일정 번호, CREATE는 수정본 분석의 후보 번호 */
+export type ConfirmSchedule = { action: 'UPDATE' | 'CREATE' | 'DELETE'; scheduleId: number | null; candidateId?: number; title?: string; date?: string }
+export type ConfirmResult = { contractId: number; version: number; previousVersion: number; savedSchedules: { scheduleId: number; title: string; date: string }[] }
+
+/**
+ * POST /api/comparisons/{comparisonId}/confirm: 수정본을 v2로 보관하고 일정을 한 번에 바꾼다(명세, 한 트랜잭션).
+ * S13 "바꿔서 저장"에서만 부른다. 같은 Idempotency-Key로 다시 보내도 한 번만 확정된다.
+ */
+export async function confirmComparison(comparisonId: number, schedules: ConfirmSchedule[], idempotencyKey: string): Promise<ConfirmResult> {
   validComparisonId(comparisonId)
   if (mockOnlyResult(comparisonId) || shouldMock('confirmComparison')) {
     const result = readMockResult(comparisonId)
-    return mockResponse({ contractId: result.currentContractId, version: result.currentVersion ?? 2 })
+    const version = result.currentVersion ?? 2
+    return mockResponse({ contractId: result.previousContractId, version, previousVersion: version - 1,
+      savedSchedules: schedules.filter(schedule => schedule.action !== 'DELETE').map((schedule, index) => ({ scheduleId: schedule.scheduleId ?? 2000 + index, title: schedule.title ?? '', date: schedule.date ?? '' })) })
   }
-  return request(`/api/comparisons/${comparisonId}/confirm`, { method: 'POST' })
+  return request(`/api/comparisons/${comparisonId}/confirm`, { ...jsonBody('POST', { schedules }), headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey } })
 }
 
 /** POST /api/comparisons/{comparisonId}/discard: 확정하지 않기(v1과 일정 유지) */

@@ -9,7 +9,7 @@ describe('shouldMock', () => {
   it('real 모드면 READY_APIS에 있는 API만 실제로 호출한다', () => {
     expect(READY_APIS).toContain('issueAnonymousUser')
     expect(shouldMock('issueAnonymousUser', 'real')).toBe(false)
-    expect(shouldMock('getAnalysis', 'real')).toBe(true)
+    expect(shouldMock('getComparison', 'real')).toBe(true)
   })
 
   // undefined를 넘기면 기본값(내 PC의 .env.local)이 쓰여서 PC마다 결과가 달라진다. 빈 값으로 확인한다.

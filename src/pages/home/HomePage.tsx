@@ -73,7 +73,7 @@ export function HomeScreen({ upcoming, onStartSample, sampleFailed = false }: Ho
           <Icon name="camera" size={26} /><b>계약서 촬영</b><small>카메라로 바로 찍기</small>
         </Link>
         <Link className="hbtn w" to="/contracts/new">
-          <Icon name="upload" size={26} /><b>파일·앨범 올리기</b><small>PDF, 사진 여러 장</small>
+          <Icon name="upload" size={26} /><b>파일·앨범 올리기</b><small>사진 여러 장</small>
         </Link>
       </div>
       <div className="note" style={{ justifyContent: 'center' }}>

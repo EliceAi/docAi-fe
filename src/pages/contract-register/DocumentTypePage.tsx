@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { requestAnalysis } from '../../api/analyses'
+import { changeDocumentType } from '../../api/contracts'
 import { getDocumentTypes, type DocumentType } from '../../api/documentTypes'
 import { useApiData } from '../../api/useApiData'
 import { Button, Header, Icon, Mascot, Say, Screen, TabBar, Tag } from '../../common/components'
@@ -37,8 +39,37 @@ export function DocumentTypePage() {
   }
 
   // 검색 결과에서 뒤로 가기(같은 주소로 이동)를 누르면 location.key가 바뀌어 처음 상태로 돌아간다
-  const focus = location.state as DocumentTypeFocus | null
+  const focus = location.state as (DocumentTypeFocus & { retypeContractId?: number }) | null
+  if (focus?.retypeContractId) return <RetypePicker key={location.key} documentTypes={data} contractId={focus.retypeContractId} />
   return <DocumentPicker key={location.key} documentTypes={data} initialLane={focus?.lane} scrollToGroup={focus?.group} />
+}
+
+/**
+ * S07 "고른 종류와 달라 보여요 → 종류 다시 고르기". 올린 사진은 그대로 두고 문서 종류만 바꾼 뒤 다시 분석한다(명세 "문서 종류 변경").
+ */
+function RetypePicker({ documentTypes, contractId }: { documentTypes: DocumentType[]; contractId: number }) {
+  const navigate = useNavigate()
+  const [error, setError] = useState('')
+  const busy = useRef(false)
+  async function retype(code: string) {
+    if (busy.current) return
+    busy.current = true
+    setError('')
+    try {
+      await changeDocumentType(contractId, code)
+      const analysis = await requestAnalysis(contractId)
+      navigate(`/analyses/${analysis.analysisId}/progress`, { replace: true })
+    } catch {
+      setError('문서 종류를 바꾸지 못했어요. 지금은 근로계약서와 임대차계약서만 다시 분석할 수 있어요.')
+    } finally {
+      busy.current = false
+    }
+  }
+  return <DocumentPicker documentTypes={documentTypes} onRetype={code => void retype(code)}
+    notice={<>
+      <div className="infob"><Icon name="info" size={18} /><span>분석할 문서 종류를 다시 골라 주세요. 올린 사진은 그대로 써요.</span></div>
+      {error && <div className="warnb" role="alert">{error}</div>}
+    </>} />
 }
 
 type DocumentPickerProps = {
@@ -47,15 +78,23 @@ type DocumentPickerProps = {
   initialQuery?: string
   /** 화면을 열 때 이 묶음(예: 입주·거주)이 보이게 내려간다 */
   scrollToGroup?: string
+  /** "종류 다시 고르기": 고르면 S03으로 가지 않고 이 함수를 부른다 */
+  onRetype?: (code: string) => void
+  /** 목록 위에 보여 줄 안내 */
+  notice?: ReactNode
 }
 
 // 와이어프레임 documentPickerScreen · searchResultScreen: 보드에서도 같은 화면을 예시 데이터로 그린다
-export function DocumentPicker({ documentTypes, initialLane = '집', initialQuery = '', scrollToGroup }: DocumentPickerProps) {
+export function DocumentPicker({ documentTypes, initialLane = '집', initialQuery = '', scrollToGroup, onRetype, notice }: DocumentPickerProps) {
   const [lane, setLane] = useState<Lane>(initialLane)
   const [query, setQuery] = useState(initialQuery)
   const scrollTarget = useRef<HTMLDivElement>(null)
   useEffect(() => { scrollTarget.current?.scrollIntoView() }, [])
-  const { chooseDocumentType } = useRegisterFlow()
+  const { chooseDocumentType: chooseForRegister } = useRegisterFlow()
+  // 종류 다시 고르기에서는 S03으로 넘어가는 링크 이동을 막고 onRetype을 부른다
+  const chooseDocumentType = (code: string, event?: MouseEvent) => {
+    if (onRetype) { event?.preventDefault(); onRetype(code) } else chooseForRegister(code)
+  }
   const { openChat } = useAppPanels()
   const isSearching = query.trim() !== ''
   const searchResults = isSearching ? findDocumentTypes(documentTypes, query.trim()) : []
@@ -83,6 +122,7 @@ export function DocumentPicker({ documentTypes, initialLane = '집', initialQuer
           </span>
         )}
       </div>
+      {notice}
       {isSearching ? (
         <SearchResults query={query.trim()} documentTypes={searchResults} onChoose={chooseDocumentType} />
       ) : (
@@ -90,7 +130,7 @@ export function DocumentPicker({ documentTypes, initialLane = '집', initialQuer
           <div className="h2" style={{ margin: '4px 0 0' }}>많이 찾는 계약서</div>
           <div className="pop">
             {POPULAR_DOCUMENTS.map(popular => (
-              <Link key={popular.code} to={SELECT_DOCUMENT_TO} onClick={() => chooseDocumentType(popular.code)}>
+              <Link key={popular.code} to={SELECT_DOCUMENT_TO} onClick={event => chooseDocumentType(popular.code, event)}>
                 <Tag color="blu">{popular.lane}</Tag>
                 <b>{documentTypes.find(documentType => documentType.code === popular.code)?.name}</b>
                 <span className="mut">{popular.note}</span>
@@ -133,7 +173,7 @@ export function DocumentPicker({ documentTypes, initialLane = '집', initialQuer
   )
 }
 
-function SearchResults({ query, documentTypes, onChoose }: { query: string; documentTypes: DocumentType[]; onChoose: (code: string) => void }) {
+function SearchResults({ query, documentTypes, onChoose }: { query: string; documentTypes: DocumentType[]; onChoose: (code: string, event?: MouseEvent) => void }) {
   return (
     <>
       <Say face={4} size={40}>‘{query}’{hasFinalConsonant(query) ? '이' : '가'} 들어간 문서가 <b>{documentTypes.length}종</b> 있어요</Say>
@@ -148,9 +188,9 @@ function SearchResults({ query, documentTypes, onChoose }: { query: string; docu
 }
 
 // 와이어프레임 docRow: 문서를 고르면 S03으로 간다. PoC에서 분석하지 않는 문서도 같은 흐름이다
-function DocumentRow({ document, note, onChoose }: { document: DocumentType; note: string; onChoose: (code: string) => void }) {
+function DocumentRow({ document, note, onChoose }: { document: DocumentType; note: string; onChoose: (code: string, event?: MouseEvent) => void }) {
   return (
-    <Link className="li" to={SELECT_DOCUMENT_TO} onClick={() => onChoose(document.code)}>
+    <Link className="li" to={SELECT_DOCUMENT_TO} onClick={event => onChoose(document.code, event)}>
       <span style={{ flex: 1 }}>
         <b>{document.name}</b> <GradeTag grade={document.grade} /><br />
         <span className="mut">{note}</span>

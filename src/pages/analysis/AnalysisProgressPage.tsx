@@ -75,7 +75,7 @@ function AnalyzingScreen({ progress }: { progress: AnalysisProgress }) {
           return <div key={label} className={`pst ${state}`}><span className="pd">{state === 'done' && <Icon name="check" size={16} />}</span>{label}</div>
         })}
       </div>
-      <div className="note"><Icon name="lock" size={14} /> 가린 이미지 {progress.pageCount}쪽만 사용해요</div>
+      <div className="note"><Icon name="lock" size={14} /> {progress.pageCount ? `가린 이미지 ${progress.pageCount}쪽만 사용해요` : '가린 이미지만 사용해요'}</div>
       <div className="note"><Icon name="info" size={14} /> 다른 화면으로 가도 분석은 계속돼요. 끝나면 알려 드릴게요.</div>
     </Screen>
   )
@@ -84,8 +84,10 @@ function AnalyzingScreen({ progress }: { progress: AnalysisProgress }) {
 function AnalysisFailedScreen({ progress, onRetry, retryFailed }: { progress: AnalysisProgress; onRetry?: () => void; retryFailed: boolean }) {
   const navigate = useNavigate()
   const action = (failure: NonNullable<AnalysisProgress['failures']>[number]) => {
-    if (failure.kind === 'BLURRY') return <Button kind="l" onClick={() => navigate('/contracts/new/capture', { state: { captureMode: 'camera' } })}>{failure.pageNo ? `${failure.pageNo}쪽 다시 찍기` : '다시 찍기'}</Button>
-    if (failure.kind === 'TYPE_MISMATCH') return <Button kind="l" to="/contracts/new">종류 다시 고르기</Button>
+    // 명세: 흐린 쪽은 그 쪽만 다시 찍어 바꾸고(페이지 재업로드), 종류가 다르면 사진은 그대로 두고 종류만 바꿔(문서 종류 변경) 다시 분석한다
+    const contractId = progress.contractId > 0 ? progress.contractId : undefined
+    if (failure.kind === 'BLURRY') return <Button kind="l" onClick={() => navigate('/contracts/new/capture', { state: { captureMode: 'camera', contractId, pageNo: failure.pageNo ?? 1 } })}>{failure.pageNo ? `${failure.pageNo}쪽 다시 찍기` : '다시 찍기'}</Button>
+    if (failure.kind === 'TYPE_MISMATCH') return <Button kind="l" onClick={() => navigate('/contracts/new', contractId ? { state: { retypeContractId: contractId } } : undefined)}>종류 다시 고르기</Button>
     return <Button kind="l" onClick={onRetry}>다시 시도</Button>
   }
   return (
