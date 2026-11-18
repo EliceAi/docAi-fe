@@ -1,6 +1,6 @@
 import type { ContractDetail, ContractSummary, CreatedContract } from '../contracts'
 
-export const mockCreatedContract: CreatedContract = { contractId: 1, documentTypeCode: 'EMPLOYMENT', pageCount: 2, status: 'REGISTERED' }
+export const mockCreatedContract: CreatedContract = { contractId: 1, documentTypeCode: 'EMPLOYMENT', pageCount: 2, status: 'DRAFT' }
 
 export const mockMyContracts: ContractSummary[] = [
   {
