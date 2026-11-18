@@ -1,0 +1,9 @@
+.comparison-result{height:100dvh}
+.comparison-result .scr{width:100%;height:100%;min-height:0;overflow:hidden}
+.comparison-result .bd{overflow-y:auto;min-height:0}
+.comparison-result .ov,.comparison-result .base{height:100%}
+.comparison-result .comparison-unread{background:var(--comparison-unread-bg)}
+.comparison-result .sheet{overflow-y:auto}
+.comparison-result textarea{width:100%;padding:0;border:0;resize:vertical;background:inherit;color:inherit;font:inherit;font-weight:700;line-height:1.5}
+@media(min-width:768px){.comparison-result{height:min(844px,calc(100dvh - 48px))}}
+.boards-phone .comparison-result{height:100%}
