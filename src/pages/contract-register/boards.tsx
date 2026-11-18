@@ -2,6 +2,7 @@ import { mockDocumentTypes } from '../../api/mocks/documentTypes'
 import type { Board } from '../../dev/types'
 import { DocumentPicker } from './DocumentTypePage'
 import { CaptureScreen } from './CapturePage'
+import { ConfirmScreen } from './ConfirmPage'
 import { MaskScreen } from './MaskPage'
 import { PreviewScreen } from './PreviewPage'
 import { RegisterFlowProvider, type MaskRegion } from './RegisterFlowContext'
@@ -33,9 +34,16 @@ const contactMask = maskOnRow(6, 0.3, '연락처')
 const fourMasks = [employerMask, workerMask, residentMask, addressMask]
 
 // 보드마다 새로 그려지도록 key를 다르게 준다
+const maskMockPagesWith = (key: string, masks: MaskRegion[]) => maskMockPages.map((file, index) => ({ id: `${key}-${index}`, file, masks: index === 0 ? masks : [] }))
 const maskBoard = (key: string, masks: MaskRegion[], screen: Parameters<typeof MaskScreen>[0] = {}) => (
-  <RegisterFlowProvider key={key} initialPages={maskMockPages.map((file, index) => ({ id: `${key}-${index}`, file, masks: index === 0 ? masks : [] }))}>
+  <RegisterFlowProvider key={key} initialPages={maskMockPagesWith(key, masks)}>
     <MaskScreen {...screen} />
+  </RegisterFlowProvider>
+)
+// S06은 S05에서 가린 뒤의 2쪽(가린 곳 5 / 0)을 보여 준다
+const confirmBoard = (key: string, initialFailed = false) => (
+  <RegisterFlowProvider key={key} initialDocumentTypeCode="EMPLOYMENT" initialPages={maskMockPagesWith(key, [...fourMasks, contactMask])}>
+    <ConfirmScreen initialFailed={initialFailed} />
   </RegisterFlowProvider>
 )
 
@@ -58,6 +66,6 @@ export const contractRegisterBoards: Board[] = [
   { id: 'S05_가리기_가림추가', owner: '김지희', path: '/contracts/new/mask', render: () => maskBoard('mask-added', [...fourMasks, contactMask], { initialNotice: { kind: 'added', label: '연락처' } }) },
   { id: 'S05_가리기_되돌림', owner: '김지희', path: '/contracts/new/mask', render: () => maskBoard('mask-undone', fourMasks, { initialNotice: { kind: 'undone', label: '연락처' } }) },
   { id: 'S05_가리기_확인후수정', owner: '김지희', path: '/contracts/new/mask', render: () => maskBoard('mask-returned', [...fourMasks, contactMask], { returned: true }) },
-  { id: 'S06_최종확인_정상', owner: '김지희', path: '/contracts/new/confirm' },
-  { id: 'S06_최종확인_생성실패', owner: '김지희', path: '/contracts/new/confirm' },
+  { id: 'S06_최종확인_정상', owner: '김지희', path: '/contracts/new/confirm', render: () => confirmBoard('confirm-normal') },
+  { id: 'S06_최종확인_생성실패', owner: '김지희', path: '/contracts/new/confirm', render: () => confirmBoard('confirm-failed', true) },
 ]

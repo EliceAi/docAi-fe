@@ -96,7 +96,9 @@ export function requestAnalysis(contractId: number): Promise<{ analysisId: numbe
   const mockOnly = mockGeneralAnalyses.find(analysis => analysis.contractId === contractId)
   if (mockOnly) return mockResponse({ analysisId: mockOnly.analysisId, status: mockOnly.status })
   if (shouldMock('requestAnalysis')) return mockResponse({ ...mockRequestedAnalysis })
-  return request(`/api/contracts/${contractId}/analyses`, { method: 'POST' })
+  // 백엔드 응답에는 진행 단계도 있지만 S07은 아직 mock 진행 상태를 쓴다. 분석 번호와 상태만 받는다.
+  return request<{ analysisId: number; status: string }>(`/api/contracts/${contractId}/analyses`, { method: 'POST' })
+    .then(({ analysisId, status }) => ({ analysisId, status: status === 'ANALYZING' ? 'IN_PROGRESS' : status as AnalysisStatus }))
 }
 
 /** GET /api/analyses/{analysisId}. S07 분석 중에는 이 응답의 status로 진행 상태를 본다(백엔드에 확인 중) */

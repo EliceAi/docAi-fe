@@ -1,9 +1,10 @@
+import { mockGeneralAnalyses } from './mocks/analyses'
 import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { getMockSchedules } from './schedules'
 
-// 계약서 등록 응답은 민서 님 브랜치(feat/ELICE-12-contract-registration) 기준, 나머지 상세는 와이어프레임 S06·S15 기준이다.
+// 계약서 등록(createContract)은 백엔드와 확인을 마쳤다. 나머지 상세는 와이어프레임 S06·S15 기준이다.
 
 export type CreateContractInput = {
   documentTypeCode: string
@@ -50,6 +51,9 @@ export type ContractDetail = ContractSummary & {
  * idempotencyKey: 같은 등록을 다시 시도할 때 같은 값을 보내면 계약서가 두 번 만들어지지 않는다.
  */
 export function createContract(input: CreateContractInput, idempotencyKey: string): Promise<CreatedContract> {
+  // 백엔드는 근로·임대차계약서만 받는다(그 밖의 종류는 400). 나머지 21종은 mock 계약서로 끝까지 보여 준다.
+  const mockOnly = mockGeneralAnalyses.find(analysis => analysis.documentTypeCode === input.documentTypeCode)
+  if (mockOnly) return mockResponse({ ...mockCreatedContract, contractId: mockOnly.contractId, documentTypeCode: input.documentTypeCode, pageCount: input.pages.length })
   if (shouldMock('createContract')) return mockResponse(mockCreatedContract)
   const form = new FormData()
   form.append('documentTypeCode', input.documentTypeCode)
