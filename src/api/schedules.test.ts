@@ -4,6 +4,8 @@ let schedules: typeof import('./schedules')
 let contracts: typeof import('./contracts')
 
 beforeEach(async () => {
+  // 내 PC의 .env.local(real)과 상관없이 mock 동작을 확인한다
+  vi.stubEnv('VITE_API_MODE', 'mock')
   vi.resetModules()
   schedules = await import('./schedules')
   contracts = await import('./contracts')

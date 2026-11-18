@@ -1,7 +1,9 @@
-import { mockAdditionalSchedules, mockConflictAnalysisId, mockConflictCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet, mockSchedules, mockScheduleToday, mockStoredSchedules } from './mocks/schedules'
+import { mockAdditionalSchedules, mockConflictAnalysisId, mockConflictCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet, mockScheduleToday, mockStoredSchedules } from './mocks/schedules'
 import type { ValueSource } from './analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
+import { toScheduleCandidateSet, toScheduleChangeSet, toScheduleDetail, toUpcomingSchedule } from './backendResponses'
+import { knownComparisonContracts } from './comparisons'
 
 // 응답 상세는 API 명세에 아직 없다. 와이어프레임 S13·S14·홈 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
 
@@ -59,44 +61,41 @@ export type ScheduleCandidate = {
   where: string
   /** 처음부터 체크해 둘지. 종료일처럼 알림이 필요 없을 수 있는 일정은 false */
   recommended: boolean
+  /** 같은 항목에 날짜가 둘 이상이면 같은 값(명세). 하나만 고르게 한다. 없으면 제목으로 묶는다 */
+  conflictGroup?: string | null
 }
 
 /** S13 일정 등록: 분석 결과에서 찾은 날짜 후보와 어느 계약서인지 */
 export type ScheduleCandidateSet = { analysisId: number; contractId: number; contractTitle: string; candidates: ScheduleCandidate[] }
 
 /** 수정본 확정으로 바뀌는 일정. scheduleId가 null이면 수정본에서 새로 생기는 일정 */
-export type ScheduleChange = { scheduleId: number | null; title: string; beforeDate: string | null; afterDate: string; source: ValueSource; note?: string }
+/** 수정본 확정으로 바뀌는 일정. UPDATE 날짜 변경 · CREATE 새 일정(scheduleId 없음) · DELETE 수정본에서 사라진 일정(afterDate 없음) */
+export type ScheduleChange = { scheduleId: number | null; candidateId?: number; action: 'UPDATE' | 'CREATE' | 'DELETE'; title: string; beforeDate: string | null; afterDate: string | null; source: ValueSource; note?: string }
 
 /** S13 변경 등록: 수정본(v2)에 맞춰 바뀌는 일정 */
 export type ScheduleChangeSet = { comparisonId: number; contractId: number; contractTitle: string; fromVersion: number; toVersion: number; changes: ScheduleChange[] }
 
-export type NewSchedule = { title: string; date: string; source: ValueSource }
+/** S13에서 저장할 일정. 후보에서 고른 일정은 candidateId를 함께 보낸다(직접 추가한 일정은 없음) */
+export type NewSchedule = { candidateId?: number; title: string; date: string; source: ValueSource }
 
 /** GET /api/analyses/{analysisId}/schedule-candidates */
 export function getScheduleCandidates(analysisId: number): Promise<ScheduleCandidateSet> {
   if (shouldMock('getScheduleCandidates')) return mockResponse({ ...(analysisId === mockConflictAnalysisId ? mockConflictCandidateSet : mockScheduleCandidateSet), analysisId })
-  return request(`/api/analyses/${analysisId}/schedule-candidates`)
+  return request<Parameters<typeof toScheduleCandidateSet>[1]>(`/api/analyses/${analysisId}/schedule-candidates`).then(data => toScheduleCandidateSet(analysisId, data))
 }
 
 /** GET /api/comparisons/{comparisonId}/schedule-changes */
 export function getScheduleChanges(comparisonId: number): Promise<ScheduleChangeSet> {
   if (shouldMock('getScheduleChanges')) return mockResponse({ ...mockScheduleChangeSet, comparisonId })
-  return request(`/api/comparisons/${comparisonId}/schedule-changes`)
-}
-
-/**
- * POST /api/schedules: S13 "선택한 일정 저장"
- * 명세 없음: 백엔드에 추가 요청. 주소와 본문은 명세 규칙대로 가정했다.
- */
-export function createSchedules(contractId: number, schedules: NewSchedule[]): Promise<Schedule[]> {
-  if (shouldMock('createSchedules')) return mockResponse(mockSchedules)
-  return request('/api/schedules', jsonBody('POST', { contractId, schedules }))
+  // 응답에 계약서 번호·버전이 없어(명세) 비교를 만들 때 기억한 이전본 번호를 쓴다. 버전은 알 수 없어 v1 → v2로 보여 준다
+  const known = { contractId: knownComparisonContracts(comparisonId)?.previousContractId ?? 0, fromVersion: 1, toVersion: 2 }
+  return request<Parameters<typeof toScheduleChangeSet>[1]>(`/api/comparisons/${comparisonId}/schedule-changes`).then(data => toScheduleChangeSet(comparisonId, data, known))
 }
 
 /** GET /api/schedules/upcoming: 홈 "다가오는 일정" */
 export function getUpcomingSchedules(): Promise<Schedule[]> {
   if (shouldMock('getUpcomingSchedules')) return mockResponse(getMockSchedules().filter(schedule => schedule.daysLeft >= 0).slice(0, 2))
-  return request('/api/schedules/upcoming')
+  return request<Parameters<typeof toUpcomingSchedule>[0][]>('/api/schedules/upcoming').then(items => items.map(toUpcomingSchedule))
 }
 
 /** GET /api/schedules */
@@ -112,7 +111,7 @@ export function getSchedule(scheduleId: number): Promise<Schedule> {
   if ((schedule?.documentTypeCode && !['EMPLOYMENT', 'LEASE'].includes(schedule.documentTypeCode)) || shouldMock('getSchedule')) {
     return schedule ? mockResponse(schedule) : Promise.reject(new Error('일정을 찾을 수 없어요.'))
   }
-  return request(`/api/schedules/${scheduleId}`)
+  return request<Parameters<typeof toScheduleDetail>[0]>(`/api/schedules/${scheduleId}`).then(toScheduleDetail)
 }
 
 /** PATCH /api/schedules/{scheduleId} */
@@ -136,7 +135,9 @@ export function updateSchedule(scheduleId: number, changes: Partial<Pick<Schedul
     scheduleOverrides.set(scheduleId, updated)
     return mockResponse(updated)
   }
-  return request(`/api/schedules/${scheduleId}`, jsonBody('PATCH', changes))
+  // 명세: 보낸 칸만 바뀐다. 날짜는 yyyy-MM-dd. 응답에는 일부 칸만 있어 상세를 다시 받는다
+  const body = { ...(changes.title !== undefined ? { title: changes.title.trim() } : {}), ...(date ? { date } : {}) }
+  return request(`/api/schedules/${scheduleId}`, jsonBody('PATCH', body)).then(() => getSchedule(scheduleId))
 }
 
 /** DELETE /api/schedules/{scheduleId} */

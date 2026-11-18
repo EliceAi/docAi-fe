@@ -11,8 +11,8 @@ export const mockChatAnswersByQuestion: Record<string, MockAnswer> = {
     answer: '지금 어떤 상황인지에 따라 달라요. 알바·취업을 앞두고 있다면 **근로계약서**, 집을 구하는 중이라면 **임대차계약서**부터 확인해 보세요.',
     refs: ['앱 사용법', '현재 화면'],
     actions: [
-      { label: '근로계약서 선택하기', to: '/contracts/new/capture' },
-      { label: '임대차계약서 선택하기', to: '/contracts/new/capture' },
+      { label: '근로계약서 선택하기', to: '/contracts/new/capture', state: { documentTypeCode: 'EMPLOYMENT' } },
+      { label: '임대차계약서 선택하기', to: '/contracts/new/capture', state: { documentTypeCode: 'LEASE' } },
       { label: '다른 문서 둘러보기', to: '/contracts/new' },
     ],
   },
@@ -87,13 +87,23 @@ export const mockChatAnswer: ChatAnswer = {
 export const mockFailingQuestion = '수습기간에도 최저임금 다 받아?'
 const alreadyFailed = new Set<string>()
 
+// mock 대화 기록: 대화 번호별로 주고받은 메시지를 기억해 "대화 기록 조회"로 돌려준다
+const mockConversations = new Map<number, ChatMessage[]>()
+
 export function findMockChatAnswer(question: ChatQuestion): Promise<ChatAnswer> {
   if (question.question === mockFailingQuestion && !alreadyFailed.has(question.question)) {
     alreadyFailed.add(question.question)
     return Promise.reject(new Error('답변을 받지 못했어요.'))
   }
-  const found = mockChatAnswersByQuestion[question.question]
-  return mockResponse({ conversationId: question.conversationId ?? 1, ...(found ?? mockChatAnswer) })
+  const answer: ChatAnswer = { ...(mockChatAnswersByQuestion[question.question] ?? mockChatAnswer), conversationId: question.conversationId ?? 1 }
+  mockConversations.set(answer.conversationId, [...(mockConversations.get(answer.conversationId) ?? []),
+    { role: 'me', text: question.question },
+    { role: 'ai', text: answer.answer, refs: answer.refs, actions: answer.actions, status: answer.status, face: answer.face }])
+  return mockResponse(answer)
+}
+
+export function findMockChatMessages(conversationId: number): Promise<ChatMessage[]> {
+  return mockResponse(mockConversations.get(conversationId) ?? [])
 }
 
 /** 패널을 처음 열면 보이는 인사 */

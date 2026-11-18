@@ -2,7 +2,11 @@
  * 백엔드 dev에 머지되고 test-api 스킬로 응답 모양까지 확인한 API만 넣는다.
  * 여기 없는 API는 VITE_API_MODE=real이어도 mock으로 답한다.
  */
-export const READY_APIS: string[] = ['issueAnonymousUser', 'createContract', 'requestAnalysis']
+export const READY_APIS: string[] = [
+  'issueAnonymousUser', 'createContract', 'requestAnalysis',
+  'getDocumentTypes', 'getUpcomingSchedules', 'getUnreadNotificationCount',
+  'getAnalysis', 'getAnalysisProgress', 'getClause', 'getSampleAnalysis', 'submitManualInputs', 'loadContractPageImage',
+]
 
 export function shouldMock(apiName: string, mode: string | undefined = import.meta.env.VITE_API_MODE): boolean {
   if (mode !== 'real') return true

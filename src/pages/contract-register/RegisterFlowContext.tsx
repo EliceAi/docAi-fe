@@ -3,7 +3,11 @@ import { createContext, useCallback, useContext, useRef, useState, type ReactNod
 /** 가림 좌표는 원본 크기에 대한 0~1 비율이다. */
 export type MaskRegion = { x: number; y: number; width: number; height: number; /** 가린 곳 목록에 보일 이름(예: 주소). 없으면 번호로 보인다 */ label?: string }
 export type RegisteredPage = { id: string; file: File; masks: MaskRegion[] }
-type ComparisonRecapture = { comparisonId: number; pageNo: number; analysisId?: number }
+/**
+ * 한 쪽만 다시 찍는 흐름. comparisonId가 있으면 S12 비교의 그 쪽을 다시 분석하고,
+ * contractId가 있으면 분석한 계약서의 그 쪽만 바꿔 다시 분석한다(S07 실패·S08 부분 분석, 명세 "페이지 재업로드").
+ */
+type PageRecapture = { pageNo: number; comparisonId?: number; contractId?: number; analysisId?: number }
 type PageEdit = { type: 'move'; id: string; to: number } | { type: 'replace'; id: string; file: File } | { type: 'remove'; id: string }
   | { type: 'mask-add'; id: string; region: MaskRegion; index?: number } | { type: 'mask-remove'; id: string; index: number }
 
@@ -24,8 +28,8 @@ type RegisterFlow = {
   /** S02에서 고른 문서 종류. 아직 안 골랐으면 null */
   documentTypeCode: string | null
   chooseDocumentType: (code: string) => void
-  comparisonRecapture: ComparisonRecapture | null
-  setComparisonRecapture: (target: ComparisonRecapture | null) => void
+  pageRecapture: PageRecapture | null
+  setPageRecapture: (target: PageRecapture | null) => void
   files: File[]
   addFiles: (files: File[]) => void
   pages: RegisteredPage[]
@@ -42,7 +46,7 @@ type RegisterFlow = {
 // 보드 모아 보기처럼 Provider 밖에서 그려도 오류가 나지 않게, 아무 일도 하지 않는 기본값을 둔다
 const RegisterFlowContext = createContext<RegisterFlow>({
   documentTypeCode: null, chooseDocumentType: () => {}, files: [], addFiles: () => {},
-  comparisonRecapture: null, setComparisonRecapture: () => {},
+  pageRecapture: null, setPageRecapture: () => {},
   pages: [], editPage: () => {}, maskingVisited: false, visitMasking: () => {},
   confirmVisited: false, visitConfirm: () => {}, getIdempotencyKey: () => crypto.randomUUID(),
 })
@@ -56,18 +60,18 @@ export function RegisterFlowProvider({ children, initialPages = [], initialMaski
   initialDocumentTypeCode?: string | null
 }) {
   const [documentTypeCode, setDocumentTypeCode] = useState<string | null>(initialDocumentTypeCode)
-  const [comparisonRecapture, setComparisonRecapture] = useState<ComparisonRecapture | null>(null)
+  const [pageRecapture, setPageRecapture] = useState<PageRecapture | null>(null)
   const chooseDocumentType = useCallback((code: string) => {
     setDocumentTypeCode(code)
     // S02에서 문서를 새로 고르면 이전 비교의 재촬영 요청은 이어받지 않는다.
-    setComparisonRecapture(null)
+    setPageRecapture(null)
   }, [])
   const [pages, setPages] = useState<RegisteredPage[]>(initialPages)
   const [maskingVisited, setMaskingVisited] = useState(initialMaskingVisited)
   const [confirmVisited, setConfirmVisited] = useState(initialConfirmVisited)
   const idempotencyKey = useRef<{ signature: string; key: string } | null>(null)
   return (
-    <RegisterFlowContext.Provider value={{ documentTypeCode, chooseDocumentType, comparisonRecapture, setComparisonRecapture,
+    <RegisterFlowContext.Provider value={{ documentTypeCode, chooseDocumentType, pageRecapture, setPageRecapture,
       files: pages.map(page => page.file),
       addFiles: selected => setPages(previous => [...previous, ...selected.map(file => ({ id: crypto.randomUUID(), file, masks: [] }))]),
       pages, editPage: edit => setPages(previous => editRegisteredPages(previous, edit)),

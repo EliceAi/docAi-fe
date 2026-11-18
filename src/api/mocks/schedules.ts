@@ -62,8 +62,8 @@ export const mockScheduleChangeSet: ScheduleChangeSet = {
   fromVersion: 1,
   toVersion: 2,
   changes: [
-    { scheduleId: 1, title: '입주·전입신고', beforeDate: '2026.11.20', afterDate: '2026.12.01', source: 'written' },
-    { scheduleId: 4, title: '계약 종료', beforeDate: '2028.11.19', afterDate: '2028.11.30', source: 'written' },
-    { scheduleId: null, title: '임대차 변경 신고', beforeDate: null, afterDate: '2026.12.12', source: 'review', note: '변경 계약일 + 30일' },
+    { scheduleId: 1, action: 'UPDATE', title: '입주·전입신고', beforeDate: '2026.11.20', afterDate: '2026.12.01', source: 'written' },
+    { scheduleId: 4, action: 'UPDATE', title: '계약 종료', beforeDate: '2028.11.19', afterDate: '2028.11.30', source: 'written' },
+    { scheduleId: null, candidateId: 412, action: 'CREATE', title: '임대차 변경 신고', beforeDate: null, afterDate: '2026.12.12', source: 'review', note: '변경 계약일 + 30일' },
   ],
 }

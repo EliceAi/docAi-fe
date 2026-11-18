@@ -92,7 +92,9 @@ export const mockGeneralComparisons: Comparison[] = mockDocumentTypes
     comparisonId: 100 + index, previousContractId: 100 + index, currentContractId: 1100 + index,
     documentTypeCode: type.code, documentTitle: `${type.name} 예시`,
     previousVersion: 1, currentVersion: 2, previousDate: '11.05', currentDate: '오늘',
-    changes: [{ kind: 'added', source: 'written', label: '추가 내용', before: null, after: `${type.checkNote} 확인`, pageNo: 1 }],
+    // 바뀐 항목 이름은 그 문서에서 확인하는 첫 항목(예: 등기부등본 → 소유자). 값은 예시임을 문구로 드러낸다
+    changes: [{ source: 'written', label: type.checkNote.split(/[,·]/)[0].trim(), before: '"이전본 내용 (예시)"', after: '"수정본에서 바뀐 내용 (예시)"', pageNo: 1,
+      note: `${type.name}에서 확인할 것: ${type.checkNote}` }],
     unreadLabels: [], unreadFields: [],
   }))
 

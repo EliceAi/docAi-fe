@@ -1,13 +1,13 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { archiveContract } from '../../api/contracts'
-import { confirmComparison } from '../../api/comparisons'
-import { createSchedules, getScheduleCandidates, getScheduleChanges, updateSchedule, type ScheduleCandidate, type ScheduleCandidateSet, type ScheduleChangeSet } from '../../api/schedules'
+import { archiveContract, type ArchiveSchedule } from '../../api/contracts'
+import { confirmComparison, type ConfirmSchedule } from '../../api/comparisons'
+import { getScheduleCandidates, getScheduleChanges, type NewSchedule, type ScheduleCandidate, type ScheduleCandidateSet, type ScheduleChangeSet } from '../../api/schedules'
 import type { ValueSource } from '../../api/analyses'
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Footer, Header, Icon, Layered, Say, Screen, SourceTag, Tag } from '../../common/components'
 import { subjectParticle } from '../contract-register/masking'
-import { buildNewSchedules, conflictGroups, dateWithWeekday, type RegisterSelection } from './scheduleRegister'
+import { buildNewSchedules, conflictGroups, conflictKey, dateWithWeekday, type RegisterSelection } from './scheduleRegister'
 import { activateScheduleButton } from './scheduleDates'
 import './schedule.css'
 
@@ -53,6 +53,21 @@ function ChangeLoader({ comparisonId }: { comparisonId: number }) {
 
 const sourceTag = (source: ValueSource) => SourceTag[source]()
 
+// 화면의 출처 → 명세 값 (직접 입력·고친 날짜는 MANUAL)
+const SOURCE_CODE = { written: 'WRITTEN', review: 'REVIEW', typed: 'MANUAL' } as const
+const toArchiveSchedule = (schedule: NewSchedule): ArchiveSchedule => ({ candidateId: schedule.candidateId ?? null, title: schedule.title, date: schedule.date, source: SOURCE_CODE[schedule.source] })
+const isoDate = (date: string) => date.replaceAll('.', '-')
+
+/** 같은 내용을 다시 보내면 같은 키를 쓴다. 내용이 바뀌면 새 저장이라 새 키를 만든다(같은 키로 다른 내용을 보내면 서버가 거절함) */
+function useIdempotencyKey() {
+  const current = useRef<{ content: string; key: string } | null>(null)
+  return (content: unknown) => {
+    const text = JSON.stringify(content)
+    if (current.current?.content !== text) current.current = { content: text, key: crypto.randomUUID() }
+    return current.current.key
+  }
+}
+
 /** 저장 요청을 한 번에 하나만 보내고, 실패하면 확인창으로 보여 준다 */
 function useSaving(run: () => Promise<void>, initialFailed: boolean) {
   const [saving, setSaving] = useState(false)
@@ -90,7 +105,7 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
   const [editingIds, setEditingIds] = useState<number[]>([])
   const [extras, setExtras] = useState<RegisterSelection['extras']>([])
   const [message, setMessage] = useState('')
-  const schedulesCreated = useRef(false)
+  const keyFor = useIdempotencyKey()
 
   const groups = conflictGroups(data.candidates)
   const conflictIds = new Set(groups.flat().map(candidate => candidate.candidateId))
@@ -102,13 +117,13 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
   const { failed, setFailed, save } = useSaving(async () => {
     if (!toSave.length) { setMessage('저장할 일정을 골라 주세요.'); return }
     setMessage('')
-    // 보관만 실패해 다시 시도할 때 같은 일정이 두 번 만들어지지 않게 한다
-    if (!schedulesCreated.current) { await createSchedules(data.contractId, toSave); schedulesCreated.current = true }
-    await archiveContract(data.contractId)
-    navigate('/schedules', { state: { schedulesSaved: true } })
+    // 명세: 보관 API 한 번에 일정까지 저장한다. 다시 시도해도 같은 키라 두 번 저장되지 않는다
+    const schedules = toSave.map(toArchiveSchedule)
+    await archiveContract(data.contractId, schedules, keyFor(schedules))
+    navigate('/schedules', { state: { schedulesSaved: schedules.length } })
   }, initialFailed)
   const keepOnly = useSaving(async () => {
-    await archiveContract(data.contractId)
+    await archiveContract(data.contractId, [], keyFor([]))
     navigate('/contracts')
   }, false)
 
@@ -129,11 +144,11 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
           <div className="card" key={group[0].title}>
             <div className="h2"><Icon name="warn" size={16} /> {subjectParticle(group[0].title)} 두 곳에 달라요</div>
             {group.map((candidate, index) => {
-              const chosen = chosenIdByTitle[candidate.title] === candidate.candidateId
+              const chosen = chosenIdByTitle[conflictKey(candidate) ?? ''] === candidate.candidateId
               return (
                 <div key={candidate.candidateId} className="srow" style={index === group.length - 1 ? { border: 0 } : undefined}>
                   <span className={`cb ${chosen ? 'on' : ''}`} role="radio" aria-checked={chosen} tabIndex={0} aria-label={dateWithWeekday(candidate.date as string)}
-                    onClick={() => setChosenIdByTitle(current => ({ ...current, [candidate.title]: candidate.candidateId }))}>{chosen && <Icon name="check" size={14} />}</span>
+                    onClick={() => setChosenIdByTitle(current => ({ ...current, [conflictKey(candidate) ?? '']: candidate.candidateId }))}>{chosen && <Icon name="check" size={14} />}</span>
                   <span style={{ flex: 1 }}><span className="dt2">{dateWithWeekday(candidate.date as string)}</span> {sourceTag(candidate.source)}<br /><span className="mut">{candidate.where}</span></span>
                 </div>
               )
@@ -196,16 +211,13 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
 
 export function ScheduleChangeView({ data, initialFailed = false }: { data: ScheduleChangeSet; initialFailed?: boolean }) {
   const navigate = useNavigate()
-  const appliedIndexes = useRef(new Set<number>())
+  const keyFor = useIdempotencyKey()
   const { saving, failed, setFailed, save } = useSaving(async () => {
-    // 이미 바꾼 일정은 다시 시도할 때 건너뛴다
-    for (const [index, change] of data.changes.entries()) {
-      if (appliedIndexes.current.has(index)) continue
-      if (change.scheduleId === null) await createSchedules(data.contractId, [{ title: change.title, date: change.afterDate.replaceAll('.', '-'), source: change.source }])
-      else await updateSchedule(change.scheduleId, { date: change.afterDate })
-      appliedIndexes.current.add(index)
-    }
-    await confirmComparison(data.comparisonId)
+    // 명세: 수정본 확정 한 번에 v2 보관과 일정 변경(UPDATE·CREATE·DELETE)을 함께 처리한다(한 트랜잭션)
+    const schedules: ConfirmSchedule[] = data.changes.map(change => change.action === 'DELETE'
+      ? { action: 'DELETE', scheduleId: change.scheduleId }
+      : { action: change.action, scheduleId: change.scheduleId, ...(change.candidateId ? { candidateId: change.candidateId } : {}), title: change.title, date: isoDate(change.afterDate ?? '') })
+    await confirmComparison(data.comparisonId, schedules, keyFor(schedules))
     navigate('/contracts')
   }, initialFailed)
 
@@ -222,7 +234,7 @@ export function ScheduleChangeView({ data, initialFailed = false }: { data: Sche
           {data.changes.map(change => (
             <div className="crow" key={change.title}>
               <b>{change.title}</b>
-              <div className="ba"><s>{change.beforeDate ?? '-'}</s><Icon name="chev" size={14} /><b>{change.afterDate}</b></div>
+              <div className="ba"><s>{change.beforeDate ?? '-'}</s><Icon name="chev" size={14} /><b>{change.action === 'DELETE' ? '삭제' : change.afterDate}</b></div>
               <span>{sourceTag(change.source)}{change.note && <> <span className="mut">{change.note}</span></>}</span>
             </div>
           ))}

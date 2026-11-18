@@ -29,15 +29,16 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
   cameraPreviewPhotos?: File[]
 }) {
   const location = useLocation()
-  const captureRequest = location.state as { captureMode?: CaptureMode; replacePageId?: string; documentTypeCode?: string; comparisonId?: number; pageNo?: number; analysisId?: number } | null
+  const captureRequest = location.state as { captureMode?: CaptureMode; replacePageId?: string; documentTypeCode?: string; comparisonId?: number; contractId?: number; pageNo?: number; analysisId?: number } | null
   const [mode, setMode] = useState<CaptureMode>(captureRequest?.captureMode ?? initialMode)
   const [message, setMessage] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
-  const { documentTypeCode, chooseDocumentType, addFiles, pages, editPage, comparisonRecapture, setComparisonRecapture } = useRegisterFlow()
+  const { documentTypeCode, chooseDocumentType, addFiles, pages, editPage, pageRecapture, setPageRecapture } = useRegisterFlow()
   const navigate = useNavigate()
   const requestedDocumentTypeCode = documentTypes.find(document => document.code === captureRequest?.documentTypeCode)?.code
   const requestedComparisonId = captureRequest?.comparisonId
   const requestedPageNo = captureRequest?.pageNo
+  const requestedContractId = captureRequest?.contractId
   const requestedAnalysisId = typeof captureRequest?.analysisId === 'number' && Number.isSafeInteger(captureRequest.analysisId) && captureRequest.analysisId > 0
     ? captureRequest.analysisId : undefined
   const selectedDocument = documentTypes.find(document => document.code === (requestedDocumentTypeCode ?? documentTypeCode ?? 'EMPLOYMENT'))
@@ -47,14 +48,18 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
   useEffect(() => {
     const typeChanged = !!requestedDocumentTypeCode && requestedDocumentTypeCode !== documentTypeCode
     if (typeChanged) chooseDocumentType(requestedDocumentTypeCode)
-    if (typeof requestedComparisonId === 'number' && Number.isSafeInteger(requestedComparisonId) && requestedComparisonId > 0
-        && typeof requestedPageNo === 'number' && Number.isSafeInteger(requestedPageNo) && requestedPageNo > 0
-        && (typeChanged || requestedComparisonId !== comparisonRecapture?.comparisonId || requestedPageNo !== comparisonRecapture?.pageNo
-          || requestedAnalysisId !== comparisonRecapture?.analysisId)) {
-      setComparisonRecapture({ comparisonId: requestedComparisonId, pageNo: requestedPageNo, analysisId: requestedAnalysisId })
+    const isId = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+    if (isId(requestedComparisonId) && isId(requestedPageNo)
+        && (typeChanged || requestedComparisonId !== pageRecapture?.comparisonId || requestedPageNo !== pageRecapture?.pageNo
+          || requestedAnalysisId !== pageRecapture?.analysisId)) {
+      setPageRecapture({ comparisonId: requestedComparisonId, pageNo: requestedPageNo, analysisId: requestedAnalysisId })
+    } else if (!isId(requestedComparisonId) && isId(requestedContractId) && isId(requestedPageNo)
+        && (requestedContractId !== pageRecapture?.contractId || requestedPageNo !== pageRecapture?.pageNo)) {
+      // S07 실패 "N쪽 다시 찍기"·S08 부분 분석 "다시 찍기": 분석한 계약서의 그 쪽만 바꾼다
+      setPageRecapture({ contractId: requestedContractId, pageNo: requestedPageNo })
     }
-  }, [requestedDocumentTypeCode, documentTypeCode, chooseDocumentType, requestedComparisonId, requestedPageNo,
-    requestedAnalysisId, comparisonRecapture?.comparisonId, comparisonRecapture?.pageNo, comparisonRecapture?.analysisId, setComparisonRecapture])
+  }, [requestedDocumentTypeCode, documentTypeCode, chooseDocumentType, requestedComparisonId, requestedContractId, requestedPageNo,
+    requestedAnalysisId, pageRecapture?.comparisonId, pageRecapture?.contractId, pageRecapture?.pageNo, pageRecapture?.analysisId, setPageRecapture])
 
   function finishCapture(files: File[]) {
     const error = validateCaptureFiles(files)
@@ -63,7 +68,7 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
       setMessage(error)
       return
     }
-    if (comparisonRecapture && files.length !== 1) {
+    if (pageRecapture && files.length !== 1) {
       setMode('select')
       setMessage('다시 찍을 쪽은 한 장만 골라 주세요.')
       return
@@ -80,7 +85,7 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
         return
       }
       editPage({ type: 'replace', id: captureRequest.replacePageId, file: files[0] })
-    } else if (comparisonRecapture && pages.length > 0) editPage({ type: 'replace', id: pages[0].id, file: files[0] })
+    } else if (pageRecapture && pages.length > 0) editPage({ type: 'replace', id: pages[0].id, file: files[0] })
     else addFiles(files)
     navigate('/contracts/new/preview', { replace: !!captureRequest })
   }
@@ -111,9 +116,9 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
       <label className="opt" tabIndex={0} role="button"
         onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInput.current?.click() } }}>
         <span className="oi"><Icon name="image" size={26} /></span>
-        <span style={{ flex: 1 }}><b style={{ fontSize: 16 }}>앨범·파일에서 고르기</b><br /><span className="mut">사진 여러 장, PDF</span></span>
+        <span style={{ flex: 1 }}><b style={{ fontSize: 16 }}>앨범·파일에서 고르기</b><br /><span className="mut">사진 여러 장</span></span>
         <Icon name="chev" size={18} />
-        <input ref={fileInput} type="file" accept="image/*,application/pdf" multiple hidden onChange={selectFiles} />
+        <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={selectFiles} />
       </label>
       <div className="card">
         <div className="h2">잘 읽히게 찍는 법</div>
@@ -125,7 +130,7 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
   )
 
   if (mode === 'camera') {
-    return <CameraCapture onCancel={() => comparisonRecapture ? navigate(`/comparisons/${comparisonRecapture.comparisonId}`, { replace: true })
+    return <CameraCapture onCancel={() => pageRecapture ? navigate(`/comparisons/${pageRecapture.comparisonId}`, { replace: true })
       : captureRequest ? navigate('/contracts/new/preview', { replace: true }) : setMode('select')} onFinish={finishCapture} onUnavailable={showCameraUnavailable}
       previewPhotos={cameraPreviewPhotos} />
   }

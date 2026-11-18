@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 const confirmHarness = vi.hoisted(() => ({
   next: undefined as undefined | (() => Promise<void>),
   flow: null as null | { pages: { id: string; file: File; masks: { x: number; y: number; width: number; height: number }[] }[];
-    documentTypeCode: string; comparisonRecapture: { comparisonId: number; pageNo: number; analysisId?: number } | null; getIdempotencyKey: () => string },
+    documentTypeCode: string; pageRecapture: { comparisonId: number; pageNo: number; analysisId?: number } | null; getIdempotencyKey: () => string },
   navigate: vi.fn(),
 }))
 
@@ -105,7 +105,7 @@ describe('S12 비교 결과', () => {
     expect((await api.getComparison(1)).unreadLabels).toEqual([field])
     expect(await getMyContract(4)).toEqual(beforeContract)
     expect(await getSchedules()).toEqual(beforeSchedules)
-    expect(await api.confirmComparison(1)).toEqual({ contractId: 2, version: 2 })
+    expect(await api.confirmComparison(1, [], 'test-key')).toMatchObject({ contractId: 4, version: 2 })
     expect(await getSchedules()).toEqual(beforeSchedules)
   })
 
@@ -136,7 +136,7 @@ describe('S12 비교 결과', () => {
     expect(general).toHaveLength(21)
     for (const original of general) {
       expect((await api.getComparison(original.comparisonId)).documentTypeCode).toBe(original.documentTypeCode)
-      expect(await api.confirmComparison(original.comparisonId)).toMatchObject({ contractId: original.currentContractId, version: 2 })
+      expect(await api.confirmComparison(original.comparisonId, [], 'test-key')).toMatchObject({ contractId: original.previousContractId, version: 2 })
       await api.discardComparison(original.comparisonId)
     }
     expect(network).not.toHaveBeenCalled()
@@ -145,7 +145,7 @@ describe('S12 비교 결과', () => {
   it('잘못된 ID와 존재하지 않는 결과를 거절한다', async () => {
     for (const id of [0, -1, 1.5, NaN, 999]) {
       await expect(api.getComparison(id)).rejects.toThrow()
-      await expect(api.confirmComparison(id)).rejects.toThrow()
+      await expect(api.confirmComparison(id, [], 'test-key')).rejects.toThrow()
       await expect(api.discardComparison(id)).rejects.toThrow()
       await expect(api.submitComparisonInputs(id, [{ label: field, value: '내용' }])).rejects.toThrow()
     }
@@ -166,7 +166,7 @@ describe('S12 비교 결과', () => {
     api = await import('../../api/comparisons')
     expect(await api.createComparison(4, 2)).toEqual(created)
     expect((await api.getComparison(created.comparisonId)).changes.at(-1)?.after).toBe('"수도 요금 포함"')
-    expect(await api.confirmComparison(created.comparisonId)).toEqual({ contractId: 2, version: 2 })
+    expect(await api.confirmComparison(created.comparisonId, [], 'test-key')).toMatchObject({ contractId: 4, version: 2 })
     await api.discardComparison(created.comparisonId)
     await expect(api.getComparison(created.comparisonId)).rejects.toThrow()
     expect((await api.createComparison(4, 2)).comparisonId).not.toBe(created.comparisonId)
@@ -181,7 +181,7 @@ describe('S12 비교 결과', () => {
     expect(result.unreadFields?.[0]).toMatchObject({ side: 'previous', location: '이전본 2쪽 아래 칸' })
     const updated = await api.submitComparisonInputs(created.comparisonId, [{ label: field, value: '새로 읽은 이전본' }])
     expect(updated.changes.at(-1)).toMatchObject({ before: '"새로 읽은 이전본"', after: '"관리비에는 인터넷 요금이 포함된다."' })
-    expect(await api.confirmComparison(created.comparisonId)).toEqual({ contractId: 4, version: 1 })
+    expect(await api.confirmComparison(created.comparisonId, [], 'test-key')).toMatchObject({ contractId: 2, version: 1 })
   })
 
   it('23종 모두 S11 생성 결과를 S12에서 읽으며 비교 ID가 예시 ID와 충돌하지 않는다', async () => {
@@ -217,7 +217,7 @@ describe('S12 비교 결과', () => {
     const created = await api.createComparison(4, 2)
     confirmHarness.flow = { pages: [{ id: 'retake', file: new File(['original-private-page'], 'retake.png', { type: 'image/png' }),
       masks: [{ x: 0, y: 0, width: 0.3, height: 0.2 }] }], documentTypeCode: 'LEASE',
-      comparisonRecapture: { comparisonId: created.comparisonId, pageNo: 2, analysisId: 6 }, getIdempotencyKey: () => 'same-request-key' }
+      pageRecapture: { comparisonId: created.comparisonId, pageNo: 2, analysisId: 6 }, getIdempotencyKey: () => 'same-request-key' }
     const { ConfirmScreen } = await import('../contract-register/ConfirmPage')
     const { AppPanelsProvider } = await import('../../common/layout/AppPanels')
     const { registerContract } = await import('../contract-register/registerContract')
@@ -231,14 +231,14 @@ describe('S12 비교 결과', () => {
     expect(await passedBlob.text()).toBe('masked-page')
     expect(masking.createMaskedImage).toHaveBeenCalledWith(confirmHarness.flow.pages[0].file, confirmHarness.flow.pages[0].masks)
     expect(confirmHarness.navigate).toHaveBeenCalledWith(`/comparisons/${created.comparisonId}`, { replace: true, state: { analysisId: 6 } })
-    confirmHarness.flow.comparisonRecapture = null
+    confirmHarness.flow.pageRecapture = null
     const normalMarkup = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(AppPanelsProvider, null, React.createElement(ConfirmScreen))))
     expect(normalMarkup).toBe(markup)
   })
 
   it('S06 일반 등록은 기존 분석 진행 경로를 유지하고 재촬영 API를 부르지 않는다', async () => {
     confirmHarness.flow = { pages: [{ id: 'normal', file: new File(['page'], 'page.png'), masks: [] }], documentTypeCode: 'EMPLOYMENT',
-      comparisonRecapture: null, getIdempotencyKey: () => 'normal-request-key' }
+      pageRecapture: null, getIdempotencyKey: () => 'normal-request-key' }
     const { ConfirmScreen } = await import('../contract-register/ConfirmPage')
     const { AppPanelsProvider } = await import('../../common/layout/AppPanels')
     const { registerContract } = await import('../contract-register/registerContract')
@@ -252,7 +252,7 @@ describe('S12 비교 결과', () => {
 
   it('재촬영 가림 실패 시 원본을 보내거나 비교 화면으로 이동하지 않는다', async () => {
     confirmHarness.flow = { pages: [{ id: 'failed', file: new File(['private'], 'page.png'), masks: [] }], documentTypeCode: 'LEASE',
-      comparisonRecapture: { comparisonId: 1, pageNo: 2 }, getIdempotencyKey: () => 'failed-request-key' }
+      pageRecapture: { comparisonId: 1, pageNo: 2 }, getIdempotencyKey: () => 'failed-request-key' }
     const { ConfirmScreen } = await import('../contract-register/ConfirmPage')
     const { AppPanelsProvider } = await import('../../common/layout/AppPanels')
     const { createMaskedImage } = await import('../contract-register/masking')
