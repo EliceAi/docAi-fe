@@ -144,13 +144,15 @@ function ComparisonResultContent({ initialComparison, initialPanel }: { initialC
       {typed > 0 && <Tag>직접 입력 {typed}</Tag>}
       {comparison.unreadLabels.length > 0 && <Tag color="amb" icon="warn">비교 못 한 곳 {comparison.unreadLabels.length}</Tag>}
     </div>
-    {comparison.changes.map((change, index) => <ChangeCard key={`${index}:${change.label}`} change={change} />)}
+    {comparison.changes.map((change, index) => <ChangeCard key={`${index}:${change.label}`} change={change}
+      previousVersion={comparison.previousVersion ?? 1} currentVersion={comparison.currentVersion ?? 2} />)}
     {comparison.unreadFields?.map(unread => <div key={unread.label} className="card comparison-unread">
       <div className="h2"><Icon name="warn" size={16} /> 비교하지 못한 곳 {comparison.unreadLabels.length}</div>
       <div className="mut"><b style={{ color: 'var(--ink)' }}>{unread.location} ({unread.title})</b><br />글자가 흐려서 읽지 못했어요. 삭제된 조항으로 보지 않아요. 확정하기 전에 확인해 주세요.</div>
       <div className="row" style={{ marginTop: 10 }}>
         <Button kind="l" onClick={() => navigate('/contracts/new/capture', { state: { captureMode: 'camera', documentTypeCode: comparison.documentTypeCode,
-          comparisonId: comparison.comparisonId, contractId: comparison.currentContractId, pageNo: unread.pageNo, returnTo: `/comparisons/${comparison.comparisonId}` } })}>그 쪽 다시 찍기</Button>
+          comparisonId: comparison.comparisonId, contractId: comparison.currentContractId, pageNo: unread.pageNo,
+          analysisId: incoming?.analysisId, returnTo: `/comparisons/${comparison.comparisonId}` } })}>그 쪽 다시 찍기</Button>
         <Button kind="l" onClick={() => openManualInput(unread)}>직접 입력</Button>
       </div>
       <div className="mut" style={{ marginTop: 8 }}>그대로 확정하면 이 칸은 '비교 못 함'으로 남아요. 직접 가린 곳(이름·연락처 등)은 원래 비교하지 않아요.</div>
@@ -168,9 +170,9 @@ function ComparisonResultContent({ initialComparison, initialPanel }: { initialC
             <a className="x" role="button" tabIndex={0} aria-label="닫기" onClick={closePanel}><Icon name="x" size={22} /></a></div>
           <form onSubmit={event => { event.preventDefault(); void perform('input') }} style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="mut">{field.location} · {field.title}</div>
-            <div className="chg"><div className="bf"><small>이전 v{comparison.previousVersion ?? 1} (읽음)</small><span>{field.before}</span></div>
+              <div className="chg"><div className="bf"><small>{field.side === 'previous' ? `수정 v${comparison.currentVersion ?? 2}` : `이전 v${comparison.previousVersion ?? 1}`} (읽음)</small><span>{field.before}</span></div>
               <div className="af" style={{ background: 'inherit', border: '1.5px solid var(--accent)' }}>
-                <label htmlFor="comparison-manual-input"><small>수정 v{comparison.currentVersion ?? 2} · 종이에 적힌 대로 입력</small></label>
+                <label htmlFor="comparison-manual-input"><small>{field.side === 'previous' ? `이전 v${comparison.previousVersion ?? 1}` : `수정 v${comparison.currentVersion ?? 2}`} · 종이에 적힌 대로 입력</small></label>
                 <textarea id="comparison-manual-input" rows={2} value={input} disabled={saving} aria-invalid={!!error} aria-describedby="comparison-manual-note"
                   onChange={event => { setInput(event.target.value); setError('') }} />
               </div></div>
@@ -189,12 +191,12 @@ function ComparisonResultContent({ initialComparison, initialPanel }: { initialC
   </div>
 }
 
-function ChangeCard({ change }: { change: Change }) {
+function ChangeCard({ change, previousVersion, currentVersion }: { change: Change; previousVersion: number; currentVersion: number }) {
   const kind = change.source === 'typed' ? 'manual' : change.kind
-  const label = kind === 'amount' ? '금액' : kind === 'date' ? '날짜' : kind === 'added' ? '추가' : kind === 'manual' ? '직접 입력' : '변경'
+  const label = kind === 'amount' ? '금액' : kind === 'date' ? '날짜' : kind === 'added' ? '추가' : kind === 'removed' ? '삭제' : kind === 'manual' ? '직접 입력' : '변경'
   return <div className="chg"><div className="row"><Tag color={kind === 'added' ? 'grn' : kind === 'manual' ? 'gry' : 'blu'}>{label}</Tag><b>{change.label}</b></div>
-    <div className="bf"><small>이전 v1</small><span>{change.before ?? '(없음)'}</span></div>
-    <div className="af"><small>수정 v2</small><b>{change.after ?? '(없음)'}</b></div>
+    <div className="bf"><small>이전 v{previousVersion}</small><span>{change.before ?? '(없음)'}</span></div>
+    <div className="af"><small>수정 v{currentVersion}</small><b>{change.after ?? '(없음)'}</b></div>
     {change.note && <div className="mut">{change.note}</div>}
   </div>
 }
