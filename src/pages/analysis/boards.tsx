@@ -1,5 +1,7 @@
 import type { Board } from '../../dev/types'
 import { mockClauseDetail, mockLeaseAnalysis, mockNormalAnalysis, mockPartialAnalysis, mockSimilarAnalysis } from '../../api/mocks/analyses'
+import { mockFailedProgress } from '../../api/mocks/analyses'
+import { AnalysisProgressView } from './AnalysisProgressPage'
 import { AnalysisResultView } from './AnalysisResultPage'
 import { ClauseDetailView } from './ClauseDetailPage'
 
@@ -7,8 +9,8 @@ import { ClauseDetailView } from './ClauseDetailPage'
 // 화면을 만들면 render에 그 보드 상태를 mock 데이터로 그려 연결한다.
 export const analysisBoards: Board[] = [
   // S07 분석 중 · #13 김지희
-  { id: 'S07_분석중_진행', owner: '김지희', path: '/analyses/1/progress' },
-  { id: 'S07_분석실패', owner: '김지희', path: '/analyses/1/progress' },
+  { id: 'S07_분석중_진행', owner: '김지희', path: '/analyses/1/progress', render: () => <AnalysisProgressView progress={{ analysisId: 1, contractId: 1, status: 'IN_PROGRESS', documentTypeName: '근로계약서', pageCount: 2, completedSteps: 2 }} /> },
+  { id: 'S07_분석실패', owner: '김지희', path: '/analyses/999/progress', render: () => <AnalysisProgressView progress={mockFailedProgress} /> },
   // S08 분석 결과 · #17 구자건 (2026-11-17 재배정)
   { id: 'S08_분석결과_정상', owner: '구자건', path: '/analyses/1', render: () => <AnalysisResultView analysis={mockNormalAnalysis} /> },
   { id: 'S08_분석결과_일부확인필요', owner: '구자건', path: '/analyses/5', render: () => <AnalysisResultView analysis={mockPartialAnalysis} /> },
