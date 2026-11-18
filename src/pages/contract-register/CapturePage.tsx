@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getDocumentTypes, type DocumentType } from '../../api/documentTypes'
 import { useApiData } from '../../api/useApiData'
@@ -29,14 +29,20 @@ export function CaptureScreen({ documentTypes, initialMode = 'select', cameraPre
   cameraPreviewPhotos?: File[]
 }) {
   const location = useLocation()
-  const captureRequest = location.state as { captureMode?: CaptureMode; replacePageId?: string } | null
+  const captureRequest = location.state as { captureMode?: CaptureMode; replacePageId?: string; documentTypeCode?: string } | null
   const [mode, setMode] = useState<CaptureMode>(captureRequest?.captureMode ?? initialMode)
   const [message, setMessage] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
-  const { documentTypeCode, addFiles, pages, editPage } = useRegisterFlow()
+  const { documentTypeCode, chooseDocumentType, addFiles, pages, editPage } = useRegisterFlow()
   const navigate = useNavigate()
-  const selectedDocument = documentTypes.find(document => document.code === (documentTypeCode ?? 'EMPLOYMENT'))
+  const requestedDocumentTypeCode = documentTypes.find(document => document.code === captureRequest?.documentTypeCode)?.code
+  const selectedDocument = documentTypes.find(document => document.code === (requestedDocumentTypeCode ?? documentTypeCode ?? 'EMPLOYMENT'))
   const showCameraUnavailable = useCallback(() => setMode('permission'), [])
+
+  // S11에서 다시 올릴 때 받은 종류를 S03 표시와 이후 등록 단계에 함께 유지한다.
+  useEffect(() => {
+    if (requestedDocumentTypeCode && requestedDocumentTypeCode !== documentTypeCode) chooseDocumentType(requestedDocumentTypeCode)
+  }, [requestedDocumentTypeCode, documentTypeCode, chooseDocumentType])
 
   function finishCapture(files: File[]) {
     const error = validateCaptureFiles(files)
