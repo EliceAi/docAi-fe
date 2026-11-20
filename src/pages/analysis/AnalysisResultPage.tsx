@@ -237,7 +237,7 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
            onKeyDown={handleSimilarKey} style={{ position: 'absolute', inset: 0 }}>
         <Dialog face={5} title="비슷한 계약서가 내 계약서에 있어요" text="방금 분석한 계약서가 아래 계약서와 많이 비슷해요. 같은 계약의 수정본인가요?"
           extra={<div className="card row" style={{ padding: 12 }}>
-            <Icon name="doc" size={20} /><span style={{ flex: 1 }}><b>{analysis.similarContract.title}</b>{' '}<Tag>v{analysis.similarContract.version}</Tag><br />
+            <Icon name="doc" size={20} /><span style={{ flex: 1 }}><b>{analysis.similarContract.title}</b>{analysis.similarContract.version ? <> <Tag>v{analysis.similarContract.version}</Tag></> : null}<br />
               <span className="mut">{analysis.similarContract.analyzedAt.slice(5)} 분석 · 일정 {analysis.similarContract.scheduleCount}개</span>
             </span>
           </div>}
@@ -255,7 +255,7 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
           <form onSubmit={event => { event.preventDefault(); void saveManualInput() }} aria-busy={saving}
                 style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <label htmlFor="holiday-value">휴일</label>
-            <input id="holiday-value" autoFocus className="srch" value={holiday} disabled={saving} aria-invalid={!!inputError}
+            <input id="holiday-value" autoFocus className="srch" value={holiday} maxLength={100} disabled={saving} aria-invalid={!!inputError}
                    aria-describedby={inputError ? 'holiday-input-error' : 'holiday-input-note'} placeholder="예: 일요일"
                    onChange={event => { setHoliday(event.target.value); setInputError('') }} style={{ width: '100%', color: 'var(--ink)', font: 'inherit' }} />
             <div id="holiday-input-note" className="note">입력한 값은 직접 입력으로 표시돼요.</div>
@@ -292,8 +292,8 @@ function FindingCard({ finding, analysisId }: { finding: Finding; analysisId: nu
           <div><small>{finding.comparison.referenceLabel}</small><b>{finding.comparison.referenceValue}</b></div>
         </div>
       )}
-      <div className="mut">{finding.summary}</div>
-      <div className="law"><Icon name="doc" size={13} /> 근거: {finding.lawName}<LawSourceLink url={finding.lawUrl} /></div>
+      {finding.verdict !== 'UNCERTAIN' && finding.summary && <div className="mut">{finding.summary}</div>}
+      {finding.lawUrl && <div className="law"><Icon name="doc" size={13} /> 근거: {finding.lawName}<LawSourceLink url={finding.lawUrl} /></div>}
       <Link className="more2" to={target}>조항 자세히 <Icon name="chev" size={14} /></Link>
     </div>
   )

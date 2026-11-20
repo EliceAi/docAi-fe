@@ -64,14 +64,14 @@ export type BackendAnalysis = {
     coverage: { pageCount: number; readPages: number[]; partialPages: number[]; maskedCount: number }
     keyTerms: BackendKeyTerm[]
     counts: { needsCheck: number; missing: number; deadline: number; totalClauses: number }
-    priorityClauses: { clauseId: number; verdict: string; title: string; description: string; comparison: { leftLabel: string; leftValue: string; operator: string; rightLabel: string; rightValue: string } | null; laws: BackendLaw[]; basisType: 'RULE' | 'AI_INTERPRETATION'; relatedClauses: unknown[] }[]
+    priorityClauses: { clauseId: number; verdict: string; title: string; description: string | null; comparison: { leftLabel: string; leftValue: string; operator: string; rightLabel: string; rightValue: string } | null; laws: BackendLaw[]; basisType: 'RULE' | 'AI_INTERPRETATION' | null; relatedClauses: unknown[] }[]
     missingItems: { name: string; description: string; dueDate: string | null; laws: BackendLaw[] }[]
     deadlines: { name: string; description: string; dueDate: string | null; laws: BackendLaw[] }[]
     clauses: { clauseId: number; articleNo: string | null; title: string | null; verdict: string; pageNo: number }[]
     questionsBeforeSigning: string[]
     limitations: string[]
     foundDateCount: number
-    similarContract: { contractId: number; title: string; analyzedAt: string; scheduleCount: number } | null
+    similarContract: { contractId: number; title: string; version?: number | null; analyzedAt: string; scheduleCount: number } | null
     disclaimer?: string
   } | null
 }
@@ -157,9 +157,10 @@ export function toAnalysisResult(data: BackendAnalysis, sampleId?: number): Anal
       clauseId: clause.clauseId,
       title: clause.title,
       level: 'check' as const,
-      summary: clause.description,
-      lawName: clause.laws.length ? `${lawLabel(clause.laws)} · ${clause.basisType === 'RULE' ? '계산은 규칙으로 확인했어요' : 'AI 해석'}` : '',
-      lawUrl: clause.laws[0] ? lawUrl(clause.laws[0].lawName, clause.laws[0].article) : lawUrl(''),
+      verdict: clause.verdict,
+      summary: clause.description ?? '',
+      lawName: clause.laws.length ? [lawLabel(clause.laws), clause.verdict !== 'UNCERTAIN' && (clause.basisType === 'RULE' ? '계산은 규칙으로 확인했어요' : clause.basisType === 'AI_INTERPRETATION' ? 'AI 해석' : '')].filter(Boolean).join(' · ') : '',
+      lawUrl: clause.laws[0] ? lawUrl(clause.laws[0].lawName, clause.laws[0].article) : '',
       ...(clause.comparison ? { comparison: { contractLabel: clause.comparison.leftLabel, contractValue: clause.comparison.leftValue, referenceLabel: clause.comparison.rightLabel, referenceValue: clause.comparison.rightValue } } : {}),
     })),
     missingItems: result.missingItems.map(item => ({ title: item.name, explanation: withLaw(item.description, item.laws) })),
@@ -171,7 +172,7 @@ export function toAnalysisResult(data: BackendAnalysis, sampleId?: number): Anal
     unreadablePages,
     ...(result.deadlines[0] ? { deadline: { title: result.deadlines[0].name, explanation: withLaw(result.deadlines[0].description, result.deadlines[0].laws) } } : {}),
     ...(result.limitations.length ? { unknowns: { title: '이 계약서만으로 알 수 없는 것', explanation: result.limitations.join(' ') } } : {}),
-    ...(result.similarContract ? { similarContract: { contractId: result.similarContract.contractId, title: result.similarContract.title, version: 1, analyzedAt: toDisplayDate(result.similarContract.analyzedAt), scheduleCount: result.similarContract.scheduleCount } } : {}),
+    ...(result.similarContract ? { similarContract: { contractId: result.similarContract.contractId, title: result.similarContract.title, version: result.similarContract.version ?? undefined, analyzedAt: toDisplayDate(result.similarContract.analyzedAt), scheduleCount: result.similarContract.scheduleCount } } : {}),
   }
 }
 
@@ -185,10 +186,10 @@ export type BackendClause = {
   verdict: string
   issueSummary: string | null
   original: { text: string | null; pageNo: number; location: string }
-  easyExplanation: string
+  easyExplanation: string | null
   whyCheck: string | null
   laws: { lawName: string; article: string; articleTitle: string; content: string }[]
-  basisType: 'RULE' | 'AI_INTERPRETATION'
+  basisType: 'RULE' | 'AI_INTERPRETATION' | null
   relatedClauses: unknown[]
   askCounterpart: string[]
   oneLine: string
@@ -196,7 +197,12 @@ export type BackendClause = {
 
 /** S09 조항 상세. 조항 응답에 없는 계약서 이름·분석일은 분석 결과에서 받아 넘긴다 */
 export function toClauseDetail(clause: BackendClause, context: { analysisId: number; contractId: number; documentTitle: string; analyzedAt: string }): ClauseDetail {
-  const law = clause.laws[0]
+  const laws = clause.laws.map(law => ({
+    lawName: `${law.lawName} ${law.article}${law.articleTitle ? ` (${law.articleTitle})` : ''}`,
+    lawText: law.content,
+    lawUrl: lawUrl(law.lawName, law.article),
+  }))
+  const law = laws[0]
   return {
     analysisId: context.analysisId,
     contractId: context.contractId,
@@ -209,11 +215,14 @@ export function toClauseDetail(clause: BackendClause, context: { analysisId: num
     // 위치 설명이 "2쪽 특약 사항"처럼 쪽 번호로 시작하면 화면이 쪽을 따로 붙이므로 뺀다
     locationDescription: withoutPagePrefix(clause.original.location, clause.original.pageNo),
     needsCheck: clause.verdict === 'NEEDS_CHECK' || clause.verdict === 'UNCERTAIN',
-    easyExplanation: clause.easyExplanation,
+    verdict: clause.verdict,
+    basisType: clause.basisType,
+    easyExplanation: clause.easyExplanation ?? clause.oneLine,
     checkReason: clause.whyCheck ?? '',
-    lawName: law ? `${law.lawName} ${law.article}${law.articleTitle ? ` (${law.articleTitle})` : ''}` : '',
-    lawText: law?.content ?? '',
-    lawUrl: law ? lawUrl(law.lawName, law.article) : lawUrl(''),
+    laws,
+    lawName: law?.lawName ?? '',
+    lawText: law?.lawText ?? '',
+    lawUrl: law?.lawUrl ?? '',
     lawAsOf: context.analyzedAt,
     question: clause.askCounterpart[0] ? `"${clause.askCounterpart[0]}"` : '',
   }

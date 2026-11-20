@@ -1,5 +1,5 @@
 import type { Board } from '../../dev/types'
-import { mockClauseDetail, mockLeaseAnalysis, mockNormalAnalysis, mockPartialAnalysis, mockSimilarAnalysis } from '../../api/mocks/analyses'
+import { mockClauseDetail, mockLeaseAnalysis, mockMultipleLawClauseDetail, mockNormalAnalysis, mockPartialAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockUncertainClauseDetail } from '../../api/mocks/analyses'
 import { mockFailedProgress } from '../../api/mocks/analyses'
 import { AnalysisProgressView } from './AnalysisProgressPage'
 import { AnalysisResultView } from './AnalysisResultPage'
@@ -16,7 +16,10 @@ export const analysisBoards: Board[] = [
   { id: 'S08_분석결과_일부확인필요', owner: '구자건', path: '/analyses/5', render: () => <AnalysisResultView analysis={mockPartialAnalysis} /> },
   { id: 'S08_분석결과_임대차', owner: '구자건', path: '/analyses/2', render: () => <AnalysisResultView analysis={mockLeaseAnalysis} /> },
   { id: 'S08_비슷한문서확인', owner: '구자건', path: '/analyses/6', render: () => <AnalysisResultView analysis={mockSimilarAnalysis} forceSimilarPrompt /> },
+  { id: 'S08_분석결과_근거없음', owner: '구자건', path: '/analyses/7', render: () => <AnalysisResultView analysis={mockUncertainAnalysis} /> },
 
   // S09 조항 상세 · #18 구자건
   { id: 'S09_조항상세_기본', owner: '구자건', path: '/analyses/1/clauses/1', render: () => <ClauseDetailView clause={mockClauseDetail} fromChat /> },
+  { id: 'S09_조항상세_근거없음', owner: '구자건', path: '/analyses/7/clauses/8', render: () => <ClauseDetailView clause={mockUncertainClauseDetail} /> },
+  { id: 'S09_조항상세_여러법령', owner: '구자건', path: '/analyses/8/clauses/9', render: () => <ClauseDetailView clause={mockMultipleLawClauseDetail} /> },
 ]
