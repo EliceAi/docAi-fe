@@ -1,11 +1,12 @@
-import { mockGeneralAnalyses } from './mocks/analyses'
+import { mockGeneralAnalyses, mockLeaseAnalysis, mockNormalAnalysis } from './mocks/analyses'
+import { mockDocumentTypes } from './mocks/documentTypes'
 import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { ApiError } from './http'
 import { getAccessToken, renewAccessToken } from './users'
 import { toMyContractDetail, toMyContracts } from './backendResponses'
-import { getMockSchedules } from './schedules'
+import { getMockSchedules, replaceMockSchedules } from './schedules'
 
 // 계약서 등록(createContract)은 백엔드와 확인을 마쳤다. 나머지 상세는 와이어프레임 S06·S15 기준이다.
 
@@ -49,6 +50,79 @@ export type ContractDetail = ContractSummary & {
   }[]
 }
 
+const archivedContracts = new Map<number, ContractDetail>()
+const snapshotIds = new Set<number>()
+const archiveResponses = new Map<string, { content: string; response: ArchiveResult }>()
+const storageKey = 'docai.mock-contracts.v1'
+let restored = false
+
+function restoreContracts() {
+  if (restored || typeof window === 'undefined') return
+  restored = true
+  try {
+    const data = JSON.parse(window.sessionStorage.getItem(storageKey) ?? 'null') as { contracts?: ContractDetail[]; snapshots?: number[]; responses?: [string, { content: string; response: ArchiveResult }][] } | null
+    for (const contract of data?.contracts ?? []) {
+      if (Number.isSafeInteger(contract.contractId) && contract.contractId > 0 && typeof contract.title === 'string' && Array.isArray(contract.keyTerms)) archivedContracts.set(contract.contractId, contract)
+    }
+    for (const [key, response] of data?.responses ?? []) if (typeof key === 'string' && response.response?.archived) archiveResponses.set(key, response)
+    for (const id of data?.snapshots ?? []) if (Number.isSafeInteger(id)) snapshotIds.add(id)
+  } catch { /* 저장 데이터가 손상되어도 원래 예시로 시작한다. */ }
+}
+
+function persistContracts() {
+  try {
+    if (typeof window !== 'undefined') window.sessionStorage.setItem(storageKey, JSON.stringify({ contracts: [...archivedContracts.values()], snapshots: [...snapshotIds], responses: [...archiveResponses] }))
+  } catch { /* 저장 공간을 쓸 수 없어도 현재 탭에서는 계속 사용할 수 있다. */ }
+}
+
+/** mock 보관과 비교에서 같은 계약서·버전을 조회한다. 예시 원본은 변경하지 않는다. */
+export function getMockContract(contractId: number): ContractDetail {
+  restoreContracts()
+  const stored = archivedContracts.get(contractId) ?? mockContractDetails.find(contract => contract.contractId === contractId)
+  if (stored) return structuredClone(stored)
+  // S11의 나머지 22종 수정본 예시는 원본 번호 + 1000을 사용한다.
+  const baseId = contractId - 1000
+  if (contractId >= 1000 && (archivedContracts.has(baseId) || mockContractDetails.some(contract => contract.contractId === baseId) || mockGeneralAnalyses.some(analysis => analysis.contractId === baseId))) {
+    const base = getMockContract(contractId - 1000)
+    return { ...base, contractId, version: base.version + 1, previousVersion: { contractId: base.contractId, version: base.version, savedAt: base.savedAt }, schedules: [], scheduleIds: [], scheduleCount: 0 }
+  }
+  const analysis = [mockNormalAnalysis, mockLeaseAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.contractId === contractId)
+  if (!analysis) throw new Error('계약서를 찾을 수 없어요.')
+  const document = mockDocumentTypes.find(document => document.code === analysis.documentTypeCode)!
+  return {
+    contractId, title: analysis.documentTitle, documentTypeCode: analysis.documentTypeCode, lane: document.lane, version: 1,
+    savedAt: analysis.analyzedAt.replaceAll('.', '-'), needsCheckCount: analysis.checkCount, analysisId: analysis.analysisId,
+    missingItemCount: analysis.missingItems.length, scheduleCount: 0, pageCount: 1, reviewLabel: analysis.reviewLabel,
+    keyTerms: analysis.keyTerms.map(term => ({ label: term.label, value: term.value ?? '확인 필요', ...(term.state ? { state: term.state } : {}) })),
+    schedules: [], scheduleIds: [],
+  }
+}
+
+/** 확정된 수정본의 내용과 버전을 내 계약서 조회에 반영한다. 이전본 원문은 보존한다. */
+export function saveMockContract(contract: ContractDetail) {
+  restoreContracts()
+  // 예전 버전을 수정본으로 고르면 기존 이전 버전 링크가 순환하지 않도록 원본을 별도로 보존한다.
+  let ancestorId = contract.previousVersion?.contractId
+  const visited = new Set<number>()
+  while (ancestorId && !visited.has(ancestorId)) {
+    visited.add(ancestorId)
+    const ancestor = getMockContract(ancestorId)
+    if (ancestor.previousVersion?.contractId === contract.contractId) {
+      const original = getMockContract(contract.contractId)
+      const snapshotId = Math.max(20000, ...archivedContracts.keys()) + 1
+      const snapshot = { ...original, contractId: snapshotId }
+      archivedContracts.set(snapshotId, snapshot)
+      snapshotIds.add(snapshotId)
+      replaceMockSchedules(snapshot, original.schedules.map(schedule => ({ title: schedule.title, date: schedule.date, source: schedule.source })))
+      archivedContracts.set(ancestorId, { ...ancestor, previousVersion: { contractId: snapshotId, version: original.version, savedAt: original.savedAt } })
+      break
+    }
+    ancestorId = ancestor.previousVersion?.contractId
+  }
+  archivedContracts.set(contract.contractId, structuredClone(contract))
+  persistContracts()
+}
+
 /**
  * POST /api/contracts (multipart)
  * idempotencyKey: 같은 등록을 다시 시도할 때 같은 값을 보내면 계약서가 두 번 만들어지지 않는다.
@@ -90,8 +164,24 @@ export type ArchiveResult = { contractId: number; archived: boolean; version: nu
  * 같은 Idempotency-Key로 다시 보내면 서버가 처음 결과를 돌려줘 일정이 두 번 저장되지 않는다.
  */
 export function archiveContract(contractId: number, schedules: ArchiveSchedule[], idempotencyKey: string): Promise<ArchiveResult> {
-  if (shouldMock('archiveContract')) {
-    return mockResponse({ contractId, archived: true, version: 1, savedSchedules: schedules.map((schedule, index) => ({ scheduleId: 1000 + index, title: schedule.title, date: schedule.date })) })
+  const general = mockGeneralAnalyses.some(analysis => analysis.contractId === contractId)
+  if (general || shouldMock('archiveContract')) {
+    try {
+      const contract = getMockContract(contractId)
+      const key = `${contractId}:${idempotencyKey}`
+      const content = JSON.stringify(schedules)
+      const previous = archiveResponses.get(key)
+      if (previous) {
+        if (previous.content !== content) throw new Error('다른 내용을 저장하려면 새 요청으로 다시 시도해 주세요.')
+        return mockResponse(previous.response)
+      }
+      const saved = replaceMockSchedules(contract, schedules.map(schedule => ({ title: schedule.title, date: schedule.date, source: schedule.source === 'MANUAL' ? 'typed' : schedule.source === 'WRITTEN' ? 'written' : 'review' })))
+      saveMockContract(contract)
+      const response: ArchiveResult = { contractId, archived: true, version: contract.version, savedSchedules: saved.map(schedule => ({ scheduleId: schedule.scheduleId, title: schedule.title, date: schedule.date.replaceAll('.', '-') })) }
+      archiveResponses.set(key, { content, response })
+      persistContracts()
+      return mockResponse(response)
+    } catch (error) { return Promise.reject(error) }
   }
   return request(`/api/contracts/${contractId}/archive`, { ...jsonBody('POST', { schedules }), headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey } })
 }
@@ -99,8 +189,14 @@ export function archiveContract(contractId: number, schedules: ArchiveSchedule[]
 /** GET /api/contracts: 내 계약서 목록 */
 export function getMyContracts(): Promise<ContractSummary[]> {
   if (shouldMock('getMyContracts')) {
+    restoreContracts()
     const schedules = getMockSchedules()
-    return mockResponse(mockMyContracts.map(contract => ({
+    const contracts = new Map<number, ContractSummary>(mockMyContracts.map(contract => [contract.contractId, contract]))
+    for (const contract of archivedContracts.values()) {
+      if (!snapshotIds.has(contract.contractId)) contracts.set(contract.contractId, contract)
+    }
+    for (const contract of archivedContracts.values()) if (contract.previousVersion) contracts.delete(contract.previousVersion.contractId)
+    return mockResponse([...contracts.values()].map(contract => ({
       ...contract,
       scheduleCount: schedules.filter(schedule => schedule.contractId === contract.contractId).length,
     })))
@@ -110,9 +206,10 @@ export function getMyContracts(): Promise<ContractSummary[]> {
 
 /** GET /api/contracts/{contractId} */
 export function getMyContract(contractId: number): Promise<ContractDetail> {
-  if (shouldMock('getMyContract')) {
-    const contract = mockContractDetails.find(detail => detail.contractId === contractId)
-    if (!contract) return Promise.reject(new Error('계약서를 찾을 수 없어요.'))
+  const mockOnly = mockGeneralAnalyses.some(analysis => analysis.contractId === contractId || analysis.contractId + 1000 === contractId)
+  if (mockOnly || shouldMock('getMyContract')) {
+    let contract: ContractDetail
+    try { contract = getMockContract(contractId) } catch (error) { return Promise.reject(error) }
     const schedules = getMockSchedules().filter(schedule => schedule.contractId === contractId)
     return mockResponse({
       ...contract,
