@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getClause, type ClauseDetail } from '../../api/analyses'
 import { useApiData } from '../../api/useApiData'
@@ -53,6 +53,8 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
   const back = `/analyses/${clause.analysisId}`
   const hasClauseNumber = clause.clauseNumber !== undefined && clause.clauseNumber > 0
   const hasPage = clause.pageNo !== undefined && clause.pageNo > 0
+  const isUncertain = clause.verdict === 'UNCERTAIN'
+  const laws = (clause.laws ?? [{ lawName: clause.lawName, lawText: clause.lawText, lawUrl: clause.lawUrl }]).filter(law => law.lawUrl)
 
   useEffect(() => {
     if (!copyMessage) return
@@ -101,16 +103,17 @@ export function ClauseDetailView({ clause, fromChat = false, chatOpening }: { cl
         {(hasPage || clause.locationDescription) && <div className="mut" style={{ marginTop: 6 }}>위치: {hasPage && `${clause.pageNo}쪽 `}{clause.locationDescription}</div>}
       </div>
       <div className="card"><div className="h2">쉬운 설명</div>{clause.easyExplanation}</div>
-      {clause.checkReason && <div className="card"><div className="h2">왜 확인이 필요해요</div>{clause.checkReason}</div>}
-      {/* 근거 조문을 찾지 못한 조항(UNCERTAIN)이나 문제없는 조항은 법령 칸을 보여 주지 않는다(명세) */}
-      {clause.lawName && <div className="card">
+      {!isUncertain && clause.checkReason && <div className="card"><div className="h2">왜 확인이 필요해요</div>{clause.checkReason}</div>}
+      {laws.length > 0 && <div className="card">
         <div className="h2"><Mascot face={4} size={26} /> 근거 법령</div>
-        <div className="lawbox"><b>{clause.lawName}</b><br />{clause.lawText}</div>
-        <div className="srcbox">
-          <span>출처 · 국가법령정보센터 · {clause.lawAsOf} 기준 시행 법령</span>
-          <LawSourceLink url={clause.lawUrl} className="btn l">법령 원문 보기 ↗</LawSourceLink>
-        </div>
-        <div className="warnline"><Icon name="info" size={14} /> 위 설명은 AI가 법령을 해석한 거예요. AI도 실수할 수 있으니 원문 법령을 함께 확인해 주세요.</div>
+        {laws.map((law, index) => <Fragment key={`${law.lawUrl}-${index}`}>
+          <div className="lawbox"><b>{law.lawName}</b><br />{law.lawText}</div>
+          <div className="srcbox">
+            <span>출처 · 국가법령정보센터 · {clause.lawAsOf} 기준 시행 법령</span>
+            <LawSourceLink url={law.lawUrl} className="btn l">법령 원문 보기 ↗</LawSourceLink>
+          </div>
+        </Fragment>)}
+        {!isUncertain && clause.basisType !== 'RULE' && clause.basisType !== null && <div className="warnline"><Icon name="info" size={14} /> 위 설명은 AI가 법령을 해석한 거예요. AI도 실수할 수 있으니 원문 법령을 함께 확인해 주세요.</div>}
       </div>}
       {clause.question && <div className="card">
         <div className="h2">상대방에게 확인할 것</div>

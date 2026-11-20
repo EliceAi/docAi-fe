@@ -1,6 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { createElement, type ReactNode } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { toAnalysisProgress, toAnalysisResult, toClauseDetail, toDocumentTypes, toUpcomingSchedule, type BackendAnalysis, type BackendClause } from './backendResponses'
 import { mockDocumentTypes } from './mocks/documentTypes'
+import { mockMultipleLawClauseDetail, mockUncertainAnalysisResponse, mockUncertainClauseResponse } from './mocks/analyses'
+import { getAnalysis, getClause } from './analyses'
+import { AppPanelsProvider } from '../common/layout/AppPanels'
+import { AnalysisResultView } from '../pages/analysis/AnalysisResultPage'
+import { ClauseDetailView } from '../pages/analysis/ClauseDetailPage'
+
+afterEach(() => vi.unstubAllEnvs())
+
+function renderView(view: ReactNode) {
+  return renderToStaticMarkup(createElement(MemoryRouter, null, createElement(AppPanelsProvider, null, view)))
+}
 
 // 아래 입력은 Notion API 명세의 응답 예시를 그대로 옮긴 것이다.
 const completed: BackendAnalysis = {
@@ -104,6 +118,31 @@ describe('toAnalysisResult', () => {
     const partial = toAnalysisResult({ ...completed, result: { ...completed.result!, coverage: { pageCount: 2, readPages: [1], partialPages: [2], maskedCount: 0 } } })
     expect(partial).toMatchObject({ status: 'PARTIAL', unreadablePages: [2], readScope: '2쪽 중 1쪽을 모두 읽었고, 2쪽은 일부만 읽었어요' })
   })
+  it('근거 없는 조항의 null 설명을 빈 문자열로 바꾸고 법령 링크를 만들지 않는다', () => {
+    const uncertain = toAnalysisResult(mockUncertainAnalysisResponse)
+    expect(uncertain.findings[0]).toMatchObject({ verdict: 'UNCERTAIN', summary: '', lawName: '', lawUrl: '' })
+    const html = renderView(createElement(AnalysisResultView, { analysis: uncertain }))
+    expect(html).toContain('근무 시간 변경')
+    expect(html).toContain('/analyses/7/clauses/8')
+    expect(html).not.toContain('class="law"')
+    expect(html).not.toContain('href="https://www.law.go.kr')
+  })
+  it('UNCERTAIN이면 설명 값이 남아 있어도 확인 이유를 그리지 않는다', () => {
+    const uncertain = toAnalysisResult(mockUncertainAnalysisResponse)
+    uncertain.findings[0].summary = '표시하면 안 되는 확인 이유'
+    expect(renderView(createElement(AnalysisResultView, { analysis: uncertain }))).not.toContain('표시하면 안 되는 확인 이유')
+  })
+  it('비슷한 계약서의 실제 버전을 쓰고, 버전이 없으면 임의로 v1을 표시하지 않는다', () => {
+    const similarContract = { contractId: 4, title: '비슷한 계약서', analyzedAt: '2026-11-05', scheduleCount: 3 }
+    for (const version of [undefined, null, 3]) {
+      const analysis = toAnalysisResult({ ...completed, result: { ...completed.result!, similarContract: { ...similarContract, version } } })
+      expect(analysis.similarContract?.version).toBe(version ?? undefined)
+      const html = renderView(createElement(AnalysisResultView, { analysis, forceSimilarPrompt: true }))
+      const dialog = html.slice(html.indexOf('role="dialog"'))
+      expect(dialog.includes('>v3</span>')).toBe(version === 3)
+      expect(dialog).not.toContain('>v1</span>')
+    }
+  })
 })
 
 describe('toClauseDetail', () => {
@@ -119,6 +158,8 @@ describe('toClauseDetail', () => {
     expect(toClauseDetail(clause, { analysisId: 88, contractId: 12, documentTitle: '카페 알바 근로계약서', analyzedAt: '2026.11.12' })).toEqual({
       analysisId: 88, contractId: 12, documentTitle: '카페 알바 근로계약서', clauseId: 707, clauseNumber: 7, title: '교육비 반환', pageNo: 2,
       originalText: clause.original.text, locationDescription: '특약 사항 첫 줄', needsCheck: true, easyExplanation: clause.easyExplanation, checkReason: clause.whyCheck,
+      verdict: 'NEEDS_CHECK', basisType: 'AI_INTERPRETATION',
+      laws: [{ lawName: '근로기준법 제20조 (위약 예정의 금지)', lawText: clause.laws[0].content, lawUrl: 'https://www.law.go.kr/법령/근로기준법/제20조' }],
       lawName: '근로기준법 제20조 (위약 예정의 금지)', lawText: clause.laws[0].content, lawUrl: 'https://www.law.go.kr/법령/근로기준법/제20조',
       lawAsOf: '2026.11.12', question: '"교육비 반환 조항은 빼 주실 수 있나요?"',
     })
@@ -126,5 +167,47 @@ describe('toClauseDetail', () => {
   it('제목이 없으면 조 번호, 그것도 없으면 한 줄 요약을 쓴다', () => {
     expect(toClauseDetail({ ...clause, title: null }, { analysisId: 1, contractId: 1, documentTitle: '', analyzedAt: '' }).title).toBe('제7조')
     expect(toClauseDetail({ ...clause, title: null, articleNo: null }, { analysisId: 1, contractId: 1, documentTitle: '', analyzedAt: '' }).title).toBe('1년 안에 그만두면 교육비 30만 원 반환')
+  })
+  it('null 설명은 한 줄 요약으로 대체하고 UNCERTAIN의 이유·법령·AI 해석 문구를 숨긴다', () => {
+    const detail = toClauseDetail(mockUncertainClauseResponse, { analysisId: 7, contractId: 1, documentTitle: '', analyzedAt: '' })
+    expect(detail).toMatchObject({ verdict: 'UNCERTAIN', basisType: null, easyExplanation: mockUncertainClauseResponse.oneLine, checkReason: '', laws: [], lawName: '', lawText: '', lawUrl: '' })
+    const html = renderView(createElement(ClauseDetailView, { clause: { ...detail, checkReason: '표시하면 안 되는 확인 이유' } }))
+    expect(html).toContain(mockUncertainClauseResponse.oneLine)
+    expect(html).toContain('상대방에게 확인할 것')
+    expect(html).not.toContain('왜 확인이 필요해요')
+    expect(html).not.toContain('표시하면 안 되는 확인 이유')
+    expect(html).not.toContain('근거 법령')
+    expect(html).not.toContain('AI가 법령을 해석한 거예요')
+    expect(html).not.toContain('href="https://www.law.go.kr')
+  })
+  it('법령 URL이 빈 문자열이면 기존 mock의 법령 이름이 남아 있어도 법령 칸을 숨긴다', () => {
+    const detail = toClauseDetail(clause, { analysisId: 1, contractId: 1, documentTitle: '', analyzedAt: '' })
+    const html = renderView(createElement(ClauseDetailView, { clause: { ...detail, laws: undefined, lawUrl: '' } }))
+    expect(html).not.toContain('근거 법령')
+    expect(html).not.toContain('법령 원문 보기')
+  })
+  it('여러 법령의 이름·원문·링크를 빠짐없이 그린다', () => {
+    const html = renderView(createElement(ClauseDetailView, { clause: mockMultipleLawClauseDetail }))
+    expect(mockMultipleLawClauseDetail.laws).toHaveLength(2)
+    expect(html).toContain('민법 제654조 (준용규정)')
+    expect(html).toContain('민법 제615조 (차주의 원상회복의무와 철거권)')
+    expect(html).toContain('제610조제1항, 제615조 내지 제617조의 규정은 임대차에 이를 준용한다.')
+    expect(html).toContain('차주가 차용물을 반환하는 때에는 이를 원상에 회복하여야 한다.')
+    expect(html).toContain('href="https://www.law.go.kr/법령/민법/제654조"')
+    expect(html).toContain('href="https://www.law.go.kr/법령/민법/제615조"')
+    expect(html.match(/법령 원문 보기/g)).toHaveLength(2)
+  })
+  it.each(['RULE', null, 'AI_INTERPRETATION'] as const)('근거 종류 %s에 맞춰 AI 해석 문구를 표시한다', basisType => {
+    const detail = toClauseDetail({ ...clause, basisType }, { analysisId: 1, contractId: 1, documentTitle: '', analyzedAt: '' })
+    const html = renderView(createElement(ClauseDetailView, { clause: detail }))
+    expect(html.includes('AI가 법령을 해석한 거예요')).toBe(basisType === 'AI_INTERPRETATION')
+  })
+  it('근거 없음·여러 법령 예시는 mock API로 분석 결과에서 조항 상세까지 열린다', async () => {
+    vi.stubEnv('VITE_API_MODE', 'mock')
+    for (const [analysisId, clauseId] of [[7, 8], [8, 9]]) {
+      const analysis = await getAnalysis(analysisId)
+      expect(analysis.findings[0].clauseId).toBe(clauseId)
+      expect(await getClause(analysisId, clauseId)).toMatchObject({ analysisId, clauseId, documentTitle: analysis.documentTitle })
+    }
   })
 })

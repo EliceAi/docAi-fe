@@ -1,6 +1,7 @@
 import type { Analysis, AnalysisProgress, AnalysisResult, AnalysisStatus, Clause, ClauseDetail } from '../analyses'
 import { mockDocumentTypes } from './documentTypes'
 import { mockContractDetails } from './contracts'
+import { toAnalysisResult, toClauseDetail, type BackendAnalysis, type BackendClause } from '../backendResponses'
 
 export const mockRequestedAnalysis: { analysisId: number; status: AnalysisStatus } = { analysisId: 1, status: 'IN_PROGRESS' }
 
@@ -134,6 +135,43 @@ export const mockNormalAnalysis: AnalysisResult = {
   unreadablePages: [],
 }
 
+// #45: 서버가 근거를 찾지 못했을 때 보내는 null·빈 법령 응답을 그대로 재현한다.
+export const mockUncertainClauseResponse: BackendClause = {
+  clauseId: 8,
+  articleNo: '제8조',
+  title: '근무 시간 변경',
+  verdict: 'UNCERTAIN',
+  issueSummary: null,
+  original: { text: '근무 시간은 매장 사정에 따라 변경할 수 있다.', pageNo: 2, location: '2쪽 제8조' },
+  easyExplanation: null,
+  whyCheck: null,
+  laws: [],
+  basisType: null,
+  relatedClauses: [],
+  askCounterpart: ['근무 시간을 바꿀 때 미리 협의할 수 있나요?'],
+  oneLine: '매장 사정에 따라 근무 시간이 바뀔 수 있다는 내용이에요.',
+}
+
+export const mockUncertainAnalysisResponse: BackendAnalysis = {
+  analysisId: 7, contractId: 1, status: 'COMPLETED', sample: true,
+  result: {
+    title: mockNormalAnalysis.documentTitle, documentTypeCode: 'EMPLOYMENT', checkLevel: 'A', analyzedAt: '2026-11-12',
+    coverage: { pageCount: 2, readPages: [1, 2], partialPages: [], maskedCount: 5 },
+    keyTerms: [{ label: '근로시간', value: '주 20시간', state: 'OK', source: 'WRITTEN' }],
+    counts: { needsCheck: 1, missing: 0, deadline: 0, totalClauses: 1 },
+    priorityClauses: [{ clauseId: 8, title: '근무 시간 변경', verdict: 'UNCERTAIN', description: null, comparison: null, laws: [], basisType: null, relatedClauses: [] }],
+    missingItems: [], deadlines: [],
+    clauses: [{ clauseId: 8, articleNo: '제8조', title: '근무 시간 변경', verdict: 'UNCERTAIN', pageNo: 2 }],
+    questionsBeforeSigning: mockUncertainClauseResponse.askCounterpart,
+    limitations: [], foundDateCount: 0, similarContract: null,
+  },
+}
+
+export const mockUncertainAnalysis = toAnalysisResult(mockUncertainAnalysisResponse)
+export const mockUncertainClauseDetail = toClauseDetail(mockUncertainClauseResponse, {
+  analysisId: 7, contractId: 1, documentTitle: mockUncertainAnalysis.documentTitle, analyzedAt: mockUncertainAnalysis.analyzedAt,
+})
+
 // S08_분석결과_일부확인필요. 정상 결과와 별도 ID로 부분 분석과 직접 입력을 확인한다.
 export const mockPartialAnalysis: AnalysisResult = {
   ...mockNormalAnalysis,
@@ -210,6 +248,25 @@ export const mockLeaseClauseDetail: ClauseDetail = {
   lawAsOf: mockLeaseAnalysis.analyzedAt,
   question: '"도배·장판 비용을 부담하는 범위를 확인해 주실 수 있나요?"',
 }
+
+// #45: 기존 임대차 예시의 두 근거 조문을 각자의 원문·링크로 보여 준다.
+export const mockMultipleLawAnalysis: AnalysisResult = {
+  ...mockLeaseAnalysis,
+  analysisId: 8,
+  findings: mockLeaseAnalysis.findings.map(finding => ({ ...finding, clauseId: 9 })),
+}
+
+export const mockMultipleLawClauseDetail = toClauseDetail({
+  clauseId: 9, articleNo: null, title: mockLeaseClauseDetail.title, verdict: 'NEEDS_CHECK', issueSummary: null,
+  original: { text: mockLeaseClauseDetail.originalText, pageNo: 0, location: '' },
+  easyExplanation: mockLeaseClauseDetail.easyExplanation, whyCheck: mockLeaseClauseDetail.checkReason,
+  laws: [
+    { lawName: '민법', article: '제654조', articleTitle: '준용규정', content: '제610조제1항, 제615조 내지 제617조의 규정은 임대차에 이를 준용한다.' },
+    { lawName: '민법', article: '제615조', articleTitle: '차주의 원상회복의무와 철거권', content: '차주가 차용물을 반환하는 때에는 이를 원상에 회복하여야 한다. 이에 부속시킨 물건은 철거할 수 있다.' },
+  ],
+  basisType: 'AI_INTERPRETATION', relatedClauses: [], askCounterpart: ['도배·장판 비용을 부담하는 범위를 확인해 주실 수 있나요?'],
+  oneLine: mockLeaseClauseDetail.easyExplanation,
+}, { analysisId: 8, contractId: 2, documentTitle: mockLeaseAnalysis.documentTitle, analyzedAt: mockLeaseAnalysis.analyzedAt })
 
 // S08_비슷한문서확인. 수정본 2와 이전본 4는 내 계약서 예시의 ID를 사용한다.
 export const mockSimilarAnalysis: AnalysisResult = {
