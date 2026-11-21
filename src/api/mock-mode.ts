@@ -6,6 +6,7 @@ export const READY_APIS: string[] = [
   'issueAnonymousUser', 'createContract', 'requestAnalysis',
   'getDocumentTypes', 'getUpcomingSchedules', 'getUnreadNotificationCount',
   'getAnalysis', 'getAnalysisProgress', 'getClause', 'getSampleAnalysis', 'submitManualInputs', 'loadContractPageImage',
+  'askChatQuestion', 'getChatMessages',
 ]
 
 export function shouldMock(apiName: string, mode: string | undefined = import.meta.env.VITE_API_MODE): boolean {
