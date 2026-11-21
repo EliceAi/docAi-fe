@@ -55,8 +55,9 @@ const sourceTag = (source: ValueSource) => SourceTag[source]()
 
 // 화면의 출처 → 명세 값 (직접 입력·고친 날짜는 MANUAL)
 const SOURCE_CODE = { written: 'WRITTEN', review: 'REVIEW', typed: 'MANUAL' } as const
-const toArchiveSchedule = (schedule: NewSchedule): ArchiveSchedule => ({ candidateId: schedule.candidateId ?? null, title: schedule.title, date: schedule.date, source: SOURCE_CODE[schedule.source] })
 const isoDate = (date: string) => date.replaceAll('.', '-')
+// 화면은 2026.12.01로 보여 주지만 보관 API는 yyyy-MM-dd만 받는다
+const toArchiveSchedule = (schedule: NewSchedule): ArchiveSchedule => ({ candidateId: schedule.candidateId ?? null, title: schedule.title, date: isoDate(schedule.date), source: SOURCE_CODE[schedule.source] })
 
 /** 같은 내용을 다시 보내면 같은 키를 쓴다. 내용이 바뀌면 새 저장이라 새 키를 만든다(같은 키로 다른 내용을 보내면 서버가 거절함) */
 function useIdempotencyKey() {

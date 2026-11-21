@@ -34,6 +34,8 @@ vi.mock('../../common/components', async importOriginal => ({
 
 let api: typeof import('../../api/comparisons')
 beforeEach(async () => {
+  // 비교 mock 흐름을 검사한다. 로컬 .env.local의 real 모드와 상관없이 mock으로 돌린다
+  vi.stubEnv('VITE_API_MODE', 'mock')
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   vi.clearAllMocks()

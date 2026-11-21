@@ -61,7 +61,8 @@ function isMockOnly(contractId: number) {
 export async function getComparisonDocuments(previous: number, current: number): Promise<[ComparisonDocument, ComparisonDocument]> {
   if (!validPair(previous, current)) throw new Error('서로 다른 이전본과 수정본을 골라 주세요.')
   async function load(contractId: number): Promise<ComparisonDocument> {
-    if (isMockOnly(contractId) || shouldMock('getMyContract')) {
+    // 비교 API가 아직 mock이면 카드도 비교 예시 계약서로 읽는다(실제 계약서와 섞이지 않게)
+    if (isMockOnly(contractId) || shouldMock('getMyContract') || shouldMock('previewComparison')) {
       const document = mockComparisonDocuments.find(document => document.contractId === contractId)
       if (!document) throw new Error('비교할 계약서를 찾을 수 없어요.')
       return mockResponse(document)
