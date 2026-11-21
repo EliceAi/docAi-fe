@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 let api: typeof import('./comparisons')
-beforeEach(async () => { vi.resetModules(); api = await import('./comparisons') })
+// 비교 mock 흐름을 검사한다. 로컬 .env.local의 real 모드와 상관없이 mock으로 돌린다
+beforeEach(async () => { vi.stubEnv('VITE_API_MODE', 'mock'); vi.resetModules(); api = await import('./comparisons') })
 
 describe('S11 비교 준비', () => {
   it('근로계약서 수정본의 종료일도 일정과 계약서 조건에 같은 날짜로 저장한다', async () => {

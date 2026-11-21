@@ -187,7 +187,8 @@ export function getUpcomingSchedules(): Promise<Schedule[]> {
 /** GET /api/schedules */
 export function getSchedules(): Promise<Schedule[]> {
   if (shouldMock('getSchedules')) return mockResponse(getMockSchedules())
-  return request('/api/schedules')
+  // 백엔드는 다가오는 일정과 같은 모양의 배열을 준다(2026-11-21 확인)
+  return request<Parameters<typeof toUpcomingSchedule>[0][]>('/api/schedules').then(items => items.map(toUpcomingSchedule))
 }
 
 /** GET /api/schedules/{scheduleId} */

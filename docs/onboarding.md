@@ -105,7 +105,7 @@ npm run dev
 | 팀원 1명이 승인하면 | 디스코드에 "머지 가능" 알림 | PR 화면에서 **Merge pull request** |
 | 머지되면 | `Closes #N` 이슈가 자동으로 닫히고, GitHub의 작업 브랜치가 자동으로 지워지고, 디스코드 "머지" 알림 | "다음 이슈 할게요" (dev 받기·로컬 브랜치 정리는 Claude가 해요) |
 | PR을 올리면 (배포) | Vercel이 그 PR만의 **미리보기 주소**를 자동으로 만들어 PR에 댓글로 달아요 | 휴대폰으로 열어 확인해도 돼요. 배포라서 mock 데이터로 보여요 |
-| `main`에 머지되면 (배포) | Vercel이 **정식 주소**(https://doc-ai-fe-six.vercel.app)에 자동으로 배포해요 | 할 일 없음. `dev`에 모인 작업을 `main`으로 합칠 때만 정식 주소가 바뀌어요 |
+| `main`에 머지되면 (배포) | Vercel이 **정식 주소**(https://elice-ai-docs.vercel.app)에 자동으로 배포해요 | 할 일 없음. `dev`에 모인 작업을 `main`으로 합칠 때만 정식 주소가 바뀌어요 |
 
 ## 6. 환경 설정: mock과 real
 
