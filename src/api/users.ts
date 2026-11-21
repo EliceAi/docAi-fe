@@ -37,9 +37,13 @@ export async function getAccessToken(): Promise<string> {
   return accessToken ?? renewAccessToken()
 }
 
+// 백엔드는 익명 발급을 IP마다 1분에 10번까지만 받는다. 화면 여러 곳이 동시에 토큰을 찾으면 발급 요청 하나를 같이 기다린다
+let pendingRenewal: Promise<string> | null = null
+
 /** 토큰이 없거나 만료(24시간)됐을 때 같은 deviceId로 다시 받는다 */
-export async function renewAccessToken(): Promise<string> {
-  const user = await issueAnonymousUser()
-  accessToken = user.accessToken
-  return accessToken
+export function renewAccessToken(): Promise<string> {
+  pendingRenewal ??= issueAnonymousUser()
+    .then(user => { accessToken = user.accessToken; return user.accessToken })
+    .finally(() => { pendingRenewal = null })
+  return pendingRenewal
 }
