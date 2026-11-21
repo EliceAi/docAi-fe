@@ -140,7 +140,7 @@ export function getAnalysisProgress(analysisId: number): Promise<AnalysisProgres
       contractId: known?.contractId ?? analysisId,
       status: completedSteps >= TOTAL_STEPS ? 'COMPLETED' : 'IN_PROGRESS',
       documentTypeName: known?.documentTypeName ?? '근로계약서',
-      pageCount: 2,
+      // mock은 몇 쪽을 올렸는지 모르니 쪽 수를 비워 둔다. 화면은 "가린 이미지만 사용해요"로 보여 준다
       completedSteps,
     })
   }

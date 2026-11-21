@@ -192,7 +192,7 @@ export function MaskScreen({ initialPageIndex = 0, initialZoomTo, initialSheetOp
   }
 
   const say = notice?.kind === 'added'
-    ? <Say face={6} size={40}><b>{notice.label ?? '선택한 곳'}</b>{notice.label ? objectParticle(notice.label).slice(-1) : '을(를)'} 가렸어요. 가린 칸은 노란 테두리로 잠깐 표시돼요.</Say>
+    ? <Say face={6} size={40}><b>{notice.label ?? '선택한 곳'}</b>{notice.label ? objectParticle(notice.label).slice(-1) : '을'} 가렸어요. 가린 칸은 노란 테두리로 잠깐 표시돼요.</Say>
     : notice?.kind === 'undone'
       ? <Say face={1} size={40}>마지막으로 가린 <b>{notice.label ?? '곳'}</b>{notice.label ? objectParticle(notice.label).slice(-1) : '을(를)'} 되돌렸어요. 다시 끌어서 가릴 수 있어요.</Say>
       : zoomMode
