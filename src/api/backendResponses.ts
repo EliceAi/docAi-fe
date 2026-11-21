@@ -403,31 +403,62 @@ export function toNotifications(data: BackendNotifications): Notification[] {
 }
 
 // ----- 챗봇 (S10) -----
+type BackendChatAction = { type: string; label: string; params: Record<string, number | string> }
+
 export type BackendChatMessage = {
   messageId: number
   role: 'USER' | 'ASSISTANT'
   content: string
-  answerType?: ChatAnswerStatus
+  answerType?: 'ANSWERED' | 'PARTIAL' | 'OUT_OF_SCOPE'
   references?: { type: string; label: string }[]
-  partial?: unknown
-  actions?: { type: string; label: string; params: Record<string, number> }[]
+  /** 일부만 답할 때: 계약서로 확인한 것 / 확인할 수 없는 것 */
+  partial?: { confirmed: string[]; unknown: string[] } | null
+  actions?: BackendChatAction[]
   createdAt: string
 }
 
 // 참고한 정보 종류 → 화면 이름. 명세 예시에는 LAW_DB만 있어 나머지는 서버 label을 그대로 쓴다
 const REFERENCE_NAMES: Record<string, string> = { LAW_DB: '법령 DB', MY_DOCUMENT: '내 문서', CURRENT_SCREEN: '현재 화면', APP_GUIDE: '앱 사용법' }
-// 이동 버튼 종류 → 화면 주소. 명세 예시에는 OPEN_CLAUSE만 있다
-const actionPath = (action: NonNullable<BackendChatMessage['actions']>[number]) =>
-  action.type === 'OPEN_CLAUSE' ? `/analyses/${action.params.analysisId}/clauses/${action.params.clauseId}`
-    : action.type === 'OPEN_ANALYSIS' ? `/analyses/${action.params.analysisId}` : null
+// 백엔드 OPEN_SCREEN이 보내는 화면 번호 → 앱 주소 (백엔드 ChatAnswerValidator.screenAction 기준)
+const SCREEN_PATHS: Record<string, (params: BackendChatAction['params']) => string | null> = {
+  S01: () => '/',
+  S08: params => params.analysisId ? `/analyses/${params.analysisId}` : null,
+  S12: params => params.comparisonId ? `/comparisons/${params.comparisonId}` : null,
+  S13: params => params.analysisId ? `/schedules/new?analysisId=${params.analysisId}` : null,
+  S14: () => '/schedules',
+  S15: () => '/contracts',
+}
+
+function actionPath(action: BackendChatAction): string | null {
+  if (action.type === 'OPEN_CLAUSE') return `/analyses/${action.params.analysisId}/clauses/${action.params.clauseId}`
+  if (action.type === 'OPEN_DOCUMENT_TYPE') return '/contracts/new'
+  if (action.type === 'OPEN_SCREEN') return SCREEN_PATHS[String(action.params.screen)]?.(action.params) ?? null
+  return null
+}
+
+// 백엔드 답변은 <b>만 강조로 쓴다. 화면은 **굵게**만 그리므로 바꾸고, 나머지 태그는 글자로 보이지 않게 지운다
+function toChatText(html: string): string {
+  return html.replace(/<b>(.*?)<\/b>/g, '**$1**').replace(/<br\s*\/?>/g, '\n').replace(/<[^>]*>/g, '')
+}
+
+// 와이어프레임 S10_챗봇_근거부족: 답변 아래 "계약서로 확인한 것 / 확인할 수 없는 것"을 나눠 보여 준다
+function withPartialSections(text: string, partial: BackendChatMessage['partial']): string {
+  if (!partial) return text
+  const sections = [['계약서로 확인한 것', partial.confirmed], ['확인할 수 없는 것', partial.unknown]] as const
+  return [text, ...sections.filter(([, lines]) => lines.length).map(([title, lines]) => `**${title}**\n${lines.join('\n')}`)].join('\n')
+}
+
+// 백엔드 PARTIAL(일부만 답함)은 화면의 근거 부족 표시(NOT_ENOUGH)와 같다
+const toAnswerStatus = (answerType: NonNullable<BackendChatMessage['answerType']>): ChatAnswerStatus =>
+  answerType === 'PARTIAL' ? 'NOT_ENOUGH' : answerType
 
 export function toChatMessage(message: BackendChatMessage): ChatMessage {
   if (message.role === 'USER') return { role: 'me', text: message.content }
   const actions = (message.actions ?? []).flatMap(action => { const to = actionPath(action); return to ? [{ label: action.label, to }] : [] })
   return {
     role: 'ai',
-    text: message.content,
-    ...(message.answerType ? { status: message.answerType } : {}),
+    text: withPartialSections(toChatText(message.content), message.partial),
+    ...(message.answerType ? { status: toAnswerStatus(message.answerType) } : {}),
     ...(message.references?.length ? { refs: [...new Set(message.references.map(ref => REFERENCE_NAMES[ref.type] ?? ref.label))] } : {}),
     ...(actions.length ? { actions } : {}),
   }
