@@ -1,4 +1,4 @@
-import { mockDemoEmploymentAnalysis, mockGeneralAnalyses, mockLeaseAnalysis } from './mocks/analyses'
+import { mockGeneralAnalyses, mockLeaseAnalysis, mockNormalAnalysis } from './mocks/analyses'
 import { mockDocumentTypes } from './mocks/documentTypes'
 import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
 import { mockResponse, shouldMock } from './mock-mode'
@@ -86,7 +86,7 @@ export function getMockContract(contractId: number): ContractDetail {
     const base = getMockContract(contractId - 1000)
     return { ...base, contractId, version: base.version + 1, previousVersion: { contractId: base.contractId, version: base.version, savedAt: base.savedAt }, schedules: [], scheduleIds: [], scheduleCount: 0 }
   }
-  const analysis = [mockDemoEmploymentAnalysis, mockLeaseAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.contractId === contractId)
+  const analysis = [mockNormalAnalysis, mockLeaseAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.contractId === contractId)
   if (!analysis) throw new Error('계약서를 찾을 수 없어요.')
   const document = mockDocumentTypes.find(document => document.code === analysis.documentTypeCode)!
   return {

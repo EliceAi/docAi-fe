@@ -1,4 +1,4 @@
-import { mockClauseDetail, mockDemoEmploymentAnalysis, mockDemoEmploymentClauseDetails, mockFailedAnalysisId, mockFailedProgress, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockMultipleLawAnalysis, mockMultipleLawClauseDetail, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses, mockUncertainAnalysis, mockUncertainClauseDetail } from './mocks/analyses'
+import { mockClauseDetail, mockDemoEmploymentAnalysis, mockDemoEmploymentClauseDetails, mockFailedAnalysisId, mockNormalAnalysis, mockFailedProgress, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockMultipleLawAnalysis, mockMultipleLawClauseDetail, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses, mockUncertainAnalysis, mockUncertainClauseDetail } from './mocks/analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { ApiError } from './http'
@@ -78,7 +78,7 @@ const mockAnalysisOverrides = new Map<number, AnalysisResult>()
 
 function findMockAnalysis(analysisId: number) {
   return mockAnalysisOverrides.get(analysisId)
-    ?? [mockDemoEmploymentAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockMultipleLawAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
+    ?? [mockNormalAnalysis, mockDemoEmploymentAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockMultipleLawAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
 }
 
 function isBackendDocumentType(code: string) {
@@ -140,7 +140,7 @@ export function getAnalysisProgress(analysisId: number): Promise<AnalysisProgres
       contractId: known?.contractId ?? analysisId,
       status: completedSteps >= TOTAL_STEPS ? 'COMPLETED' : 'IN_PROGRESS',
       documentTypeName: known?.documentTypeName ?? '근로계약서',
-      pageCount: 2,
+      // mock은 몇 쪽을 올렸는지 모르니 쪽 수를 비워 둔다. 화면은 "가린 이미지만 사용해요"로 보여 준다
       completedSteps,
     })
   }

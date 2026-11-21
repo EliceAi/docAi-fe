@@ -133,6 +133,8 @@ export type NewSchedule = { candidateId?: number; title: string; date: string; s
 /** GET /api/analyses/{analysisId}/schedule-candidates */
 export async function getScheduleCandidates(analysisId: number): Promise<ScheduleCandidateSet> {
   const analysis = await getAnalysis(analysisId)
+  // 홈 예시는 보관된 계약서가 아니라(계약서 번호 0) 서버에 일정 후보가 없다. 다른 계약서 날짜를 빌려 오지 않고 직접 추가만 받는다
+  if (analysis.contractId === 0) return mockResponse({ analysisId, contractId: 0, contractTitle: analysis.documentTitle, candidates: [] })
   if (shouldMock('getScheduleCandidates') || !['EMPLOYMENT', 'LEASE'].includes(analysis.documentTypeCode)) {
     let candidates: ScheduleCandidate[] = []
     if (analysisId === mockConflictAnalysisId) candidates = mockConflictCandidateSet.candidates
