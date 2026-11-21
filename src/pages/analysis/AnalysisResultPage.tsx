@@ -205,9 +205,10 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
       </div>
       <div className="card" style={{ padding: '6px 16px' }}>
         <div className="h2" style={{ marginTop: 10 }}>전체 조항 {analysis.clauses.length}</div>
-        {analysis.clauses.map(clause => (
-          <Link key={clause.number} className="li" to={`/analyses/${analysis.analysisId}/clauses/${clause.clauseId}`}>
-            <b style={{ width: 46 }}>제{clause.number}조</b><span style={{ flex: 1 }}>{clause.title}</span>
+        {analysis.clauses.map((clause, index) => (
+          // 표준근로계약서처럼 "1.", "2."로 나눈 계약서는 서버가 조 번호를 주지 않아(0) 순서 번호로 보여 준다
+          <Link key={`${clause.clauseId}:${index}`} className="li" to={`/analyses/${analysis.analysisId}/clauses/${clause.clauseId}`}>
+            <b style={{ width: 46 }}>{clause.number ? `제${clause.number}조` : ''}</b><span style={{ flex: 1 }}>{clause.title || `${index + 1}번째 조항`}</span>
             {clause.needsCheck ? <Tag color="red" icon="warn">확인 필요</Tag> : <Tag>짚은 내용 없음</Tag>}
             <Icon name="chev" size={16} />
           </Link>
