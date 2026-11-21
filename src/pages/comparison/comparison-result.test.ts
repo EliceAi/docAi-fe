@@ -105,7 +105,9 @@ describe('S12 비교 결과', () => {
     expect((await api.getComparison(1)).unreadLabels).toEqual([field])
     expect(await getMyContract(4)).toEqual(beforeContract)
     expect(await getSchedules()).toEqual(beforeSchedules)
-    expect(await api.confirmComparison(1, [], 'test-key')).toMatchObject({ contractId: 4, version: 2 })
+    expect(await api.confirmComparison(1, [], 'test-key')).toMatchObject({ contractId: 2, version: 2, previousVersion: 1 })
+    expect(await getMyContract(2)).toMatchObject({ version: 2, previousVersion: { contractId: 4, version: 1 } })
+    expect(await getMyContract(4)).toEqual(beforeContract)
     expect(await getSchedules()).toEqual(beforeSchedules)
   })
 
@@ -136,7 +138,7 @@ describe('S12 비교 결과', () => {
     expect(general).toHaveLength(21)
     for (const original of general) {
       expect((await api.getComparison(original.comparisonId)).documentTypeCode).toBe(original.documentTypeCode)
-      expect(await api.confirmComparison(original.comparisonId, [], 'test-key')).toMatchObject({ contractId: original.previousContractId, version: 2 })
+      expect(await api.confirmComparison(original.comparisonId, [], 'test-key')).toMatchObject({ contractId: original.currentContractId, version: 2 })
       await api.discardComparison(original.comparisonId)
     }
     expect(network).not.toHaveBeenCalled()
@@ -166,7 +168,7 @@ describe('S12 비교 결과', () => {
     api = await import('../../api/comparisons')
     expect(await api.createComparison(4, 2)).toEqual(created)
     expect((await api.getComparison(created.comparisonId)).changes.at(-1)?.after).toBe('"수도 요금 포함"')
-    expect(await api.confirmComparison(created.comparisonId, [], 'test-key')).toMatchObject({ contractId: 4, version: 2 })
+    expect(await api.confirmComparison(created.comparisonId, [], 'test-key')).toMatchObject({ contractId: 2, version: 2 })
     await api.discardComparison(created.comparisonId)
     await expect(api.getComparison(created.comparisonId)).rejects.toThrow()
     expect((await api.createComparison(4, 2)).comparisonId).not.toBe(created.comparisonId)
@@ -181,7 +183,7 @@ describe('S12 비교 결과', () => {
     expect(result.unreadFields?.[0]).toMatchObject({ side: 'previous', location: '이전본 2쪽 아래 칸' })
     const updated = await api.submitComparisonInputs(created.comparisonId, [{ label: field, value: '새로 읽은 이전본' }])
     expect(updated.changes.at(-1)).toMatchObject({ before: '"새로 읽은 이전본"', after: '"관리비에는 인터넷 요금이 포함된다."' })
-    expect(await api.confirmComparison(created.comparisonId, [], 'test-key')).toMatchObject({ contractId: 2, version: 1 })
+    expect(await api.confirmComparison(created.comparisonId, [], 'test-key')).toMatchObject({ contractId: 4, version: 1, previousVersion: 2 })
   })
 
   it('23종 모두 S11 생성 결과를 S12에서 읽으며 비교 ID가 예시 ID와 충돌하지 않는다', async () => {
