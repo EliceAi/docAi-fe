@@ -1,0 +1,47 @@
+# 로컬 개발용 백엔드(docAi-be) + DB. JDK·PostgreSQL을 설치하지 않고 Docker로만 띄운다.
+# 전제: docAi-be를 이 저장소 옆 폴더(../docAi-be)에 clone해 둔다.
+# 실행: npm run backend · 끄기: npm run backend:stop · 로그: npm run backend:logs
+# 백엔드 코드가 바뀌면: git -C ../docAi-be pull → npm run backend:restart
+
+name: docai-local
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: docai
+      POSTGRES_USER: docai
+      POSTGRES_PASSWORD: docai-local
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "docai"]
+      interval: 3s
+      retries: 20
+    # 포트를 열지 않는다. PC에 다른 PostgreSQL(5432)이 있어도 부딪히지 않고, 백엔드만 이 DB를 쓴다.
+
+  backend:
+    image: eclipse-temurin:17-jdk
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/docai
+      DB_USERNAME: docai
+      DB_PASSWORD: docai-local
+      # DOCAI_TOKEN_SECRET은 비워 둔다. 백엔드를 다시 켜면 토큰이 무효가 되지만, 프론트가 401을 받으면 자동으로 다시 발급받는다.
+    volumes:
+      - ../docAi-be:/src:ro
+      - gradle-cache:/root/.gradle
+    # Windows에서 받은 gradlew는 줄바꿈이 CRLF라 리눅스에서 실행되지 않는다. 복사본만 LF로 바꿔 실행한다.
+    # 목록 형식으로 써야 compose가 \r의 역슬래시를 지우지 않는다
+    command:
+      - bash
+      - -c
+      - 'rm -rf /app && cp -r /src /app && cd /app && sed -i "s/\r$$//" gradlew && chmod +x gradlew && ./gradlew bootRun --no-daemon'
+
+volumes:
+  db-data:
+  gradle-cache:

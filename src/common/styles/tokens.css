@@ -1,0 +1,10 @@
+/* 와이어프레임(docs/wireframe.html)의 색 기준. 화면 코드는 이 변수만 쓴다. */
+:root{
+  --ink:#1F2328;
+  --muted:#5F6672;
+  --line:#E3E5E8;
+  --accent:#2458D6;
+  --accent-soft:#EEF3FF;
+  --bg:#F5F6F8;
+  --comparison-unread-bg:#FFFBF2;
+}

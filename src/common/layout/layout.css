@@ -1,0 +1,26 @@
+/* 앱 틀: PC는 휴대폰 틀 + 소개, 휴대폰은 꽉 찬 화면 (docs/architecture.md 1장, planning PC 예시 이미지) */
+
+.app-mobile{height:100dvh}
+.app-mobile .phone-viewport{height:100%}
+.app-mobile .scr{width:100%;min-height:100dvh}
+
+.app-pc{min-height:100vh;display:flex;align-items:center;justify-content:center;gap:110px;padding:24px;background:#EEF1F6}
+.phone-frame{width:390px;height:min(844px,calc(100vh - 48px));border-radius:52px;box-shadow:0 0 0 12px #14171C,0 30px 60px rgba(0,0,0,.25);overflow:hidden;background:#fff;flex:none}
+.phone-frame .phone-viewport{height:100%}
+.phone-frame .scr{min-height:100%}
+
+.phone-viewport{position:relative;overflow:hidden}
+.phone-scroll{height:100%;overflow-y:auto;overflow-x:hidden}
+.phone-overlay{position:absolute;inset:0;z-index:20}
+
+.pc-intro{width:430px;color:var(--ink)}
+.pc-badge{display:inline-block;background:#E8EEFC;color:#1A43A8;font-weight:700;font-size:14px;border-radius:999px;padding:5px 12px}
+.pc-intro h1{font-size:40px;line-height:1.3;margin:18px 0 10px}
+.pc-intro p{font-size:17px;line-height:1.7;color:#5B6470;margin:0}
+.pc-actions{display:flex;gap:10px;margin-top:26px}
+.pc-btn{background:#fff;border:1.5px solid #C9D2E0;font-weight:700;border-radius:12px;padding:12px 18px;font-size:15px}
+.pc-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.pc-qr{display:flex;align-items:center;gap:14px;margin-top:30px;font-size:14px;color:#5B6470;line-height:1.6}
+.pc-qr b{color:var(--ink)}
+.pc-qr-box{width:84px;height:84px;border-radius:10px;background:#fff;border:1px dashed #C5CAD1;display:flex;align-items:center;justify-content:center;color:#8A9099;font-size:12px}
+.pc-intro .pc-demo{font-size:13px;color:#8A9099;margin-top:24px}
