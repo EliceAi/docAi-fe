@@ -27,6 +27,10 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    # AI·법령 키는 커밋하지 않는 .env.backend에 둔다(OPENAI_API_KEY, LAW_API_KEY). 파일이 없으면 키 없이 켜진다.
+    env_file:
+      - path: .env.backend
+        required: false
     environment:
       DB_URL: jdbc:postgresql://db:5432/docai
       DB_USERNAME: docai
