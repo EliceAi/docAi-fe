@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { askChatQuestion, getChatMessages, loadLastConversationId, saveLastConversationId, type ChatAction, type ChatMessage } from '../../api/chats'
 import { getMyContract } from '../../api/contracts'
 import { mockGreeting } from '../../api/mocks/chats'
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Icon, LawSourceLink, Mascot, Sheet, Tag } from '../../common/components'
 import type { ChatOpening } from '../../common/layout/AppPanels'
-import { CHAT_FAILED_TEXT, needsLeaveConfirm, screenContext, SUGGESTED_QUESTIONS } from './chatRules'
+import { CHAT_FAILED_TEXT, needsLeaveConfirm, screenContext, screenIdsFromPath, SUGGESTED_QUESTIONS } from './chatRules'
 
 // S10 AI 챗봇 패널 · #23 김지희 · 보드 13개는 boards.tsx 참고
 // 챗봇은 화면이 아니라 지금 화면 위에 올라오는 패널이라 주소가 없다(AppPanels 참고).
@@ -20,6 +20,7 @@ type ChatPanelProps = {
 
 export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [messages, setMessages] = useState<ChatMessage[]>([mockGreeting])
   const [chips, setChips] = useState(SUGGESTED_QUESTIONS[opening.from ?? ''] ?? [])
   const [input, setInput] = useState('')
@@ -47,7 +48,7 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
     // 다시 시도할 때는 실패 안내만 지우고, 같은 질문을 한 번 더 쌓지 않는다
     setMessages(list => retry ? list.filter(message => message.status !== 'FAILED') : [...list, { role: 'me', text }])
     try {
-      const answer = await askChatQuestion({ conversationId: conversationId.current, contractId: opening.contractId, screen: opening.from, question: text })
+      const answer = await askChatQuestion({ conversationId: conversationId.current, contractId: opening.contractId, screen: opening.from, ...screenIdsFromPath(pathname), question: text })
       conversationId.current = answer.conversationId
       saveLastConversationId(answer.conversationId)
       setMessages(list => [...list, { role: 'ai', text: answer.answer, refs: answer.refs, actions: answer.actions, status: answer.status, face: answer.face }])

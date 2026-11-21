@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { needsLeaveConfirm, SUGGESTED_QUESTIONS, screenContext } from './chatRules'
+import { needsLeaveConfirm, SUGGESTED_QUESTIONS, screenContext, screenIdsFromPath } from './chatRules'
+
+describe('screenIdsFromPath', () => {
+  it('지금 보는 분석·조항·비교 번호를 주소에서 읽는다', () => {
+    expect(screenIdsFromPath('/analyses/7')).toEqual({ analysisId: 7 })
+    expect(screenIdsFromPath('/analyses/7/progress')).toEqual({ analysisId: 7 })
+    expect(screenIdsFromPath('/analyses/7/clauses/3')).toEqual({ analysisId: 7, clauseId: 3 })
+    expect(screenIdsFromPath('/comparisons/4')).toEqual({ comparisonId: 4 })
+  })
+  it('번호가 없는 화면은 아무것도 보내지 않는다', () => {
+    expect(screenIdsFromPath('/')).toEqual({})
+    expect(screenIdsFromPath('/comparisons/new')).toEqual({})
+    expect(screenIdsFromPath('/contracts/new/mask')).toEqual({})
+  })
+})
 
 describe('needsLeaveConfirm', () => {
   it('가리는 중(S05)에 다른 등록 화면으로 가면 확인한다', () => {

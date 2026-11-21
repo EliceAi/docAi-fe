@@ -3,7 +3,7 @@ import { shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { toChatMessage, toChatMessages, type BackendChatMessage } from './backendResponses'
 
-// 응답 상세는 API 명세에 아직 없다. 와이어프레임 S10 챗봇 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
+// 명세의 "AI 질문"은 비어 있어 백엔드 구현(AskRequest, 2026-11-21 실제 응답)에 맞췄다.
 
 /** ANSWERED 답변 · OUT_OF_SCOPE 범위 밖 · NOT_ENOUGH 근거 부족 · FAILED 응답 실패 */
 export type ChatAnswerStatus = 'ANSWERED' | 'OUT_OF_SCOPE' | 'NOT_ENOUGH' | 'FAILED'
@@ -12,8 +12,12 @@ export type ChatQuestion = {
   conversationId?: number
   /** 연결한 내 계약서. 없으면 일반 질문 */
   contractId?: number
-  /** 질문한 화면 코드(S01~S15) */
+  /** 질문한 화면 코드(S01~S15). 백엔드는 필수라 없으면 홈(S01)으로 보낸다 */
   screen?: string
+  /** 지금 보는 분석·조항·비교. 챗봇이 그 화면 내용을 보고 답한다 */
+  analysisId?: number
+  clauseId?: number
+  comparisonId?: number
   question: string
 }
 
@@ -47,10 +51,11 @@ export type ChatMessage = {
 /** POST /api/chats/messages */
 export function askChatQuestion(question: ChatQuestion): Promise<ChatAnswer> {
   if (shouldMock('askChatQuestion')) return findMockChatAnswer(question)
-  // AI 질문 응답은 명세 페이지가 비어 있다. 대화 기록 조회의 ASSISTANT 메시지 모양에 대화 번호가 붙어 온다고 가정한다
-  return request<BackendChatMessage & { conversationId: number; followUps?: string[] }>('/api/chats/messages', jsonBody('POST', question)).then(data => {
-    const message = toChatMessage(data)
-    return { conversationId: data.conversationId, status: message.status ?? 'ANSWERED', answer: message.text, refs: message.refs ?? [], actions: message.actions ?? [], ...(data.followUps ? { followUps: data.followUps } : {}) }
+  const { question: message, screen = 'S01', ...context } = question
+  // 질문 응답은 대화 기록의 ASSISTANT 메시지와 같은 모양이지만 본문이 content가 아니라 answer로 온다
+  return request<Omit<BackendChatMessage, 'role' | 'content' | 'createdAt'> & { conversationId: number; answer: string }>('/api/chats/messages', jsonBody('POST', { message, screen, ...context })).then(data => {
+    const reply = toChatMessage({ ...data, role: 'ASSISTANT', content: data.answer, createdAt: '' })
+    return { conversationId: data.conversationId, status: reply.status ?? 'ANSWERED', answer: reply.text, refs: reply.refs ?? [], actions: reply.actions ?? [] }
   })
 }
 

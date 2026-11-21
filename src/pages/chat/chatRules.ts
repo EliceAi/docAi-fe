@@ -33,5 +33,16 @@ export function needsLeaveConfirm(from: string | undefined, to: string): boolean
   return from === 'S05' && to.startsWith('/contracts/new') && to !== '/contracts/new/mask'
 }
 
+/** 챗봇이 지금 화면 내용을 보고 답하도록, 보고 있는 분석·조항·비교 번호를 주소에서 읽는다 */
+export function screenIdsFromPath(pathname: string): { analysisId?: number; clauseId?: number; comparisonId?: number } {
+  const clause = pathname.match(/^\/analyses\/(\d+)\/clauses\/(\d+)/)
+  if (clause) return { analysisId: Number(clause[1]), clauseId: Number(clause[2]) }
+  const analysis = pathname.match(/^\/analyses\/(\d+)/)
+  if (analysis) return { analysisId: Number(analysis[1]) }
+  const comparison = pathname.match(/^\/comparisons\/(\d+)/)
+  if (comparison) return { comparisonId: Number(comparison[1]) }
+  return {}
+}
+
 /** 답변을 받지 못했을 때 */
 export const CHAT_FAILED_TEXT = '답변을 받지 못했어요. 작성한 질문은 그대로 있어요.'

@@ -6,6 +6,7 @@ export const READY_APIS: string[] = [
   'issueAnonymousUser', 'createContract', 'requestAnalysis',
   'getDocumentTypes', 'getUpcomingSchedules', 'getUnreadNotificationCount',
   'getAnalysis', 'getAnalysisProgress', 'getClause', 'getSampleAnalysis', 'submitManualInputs', 'loadContractPageImage',
+  'askChatQuestion', 'getChatMessages',
   // #54 B 담당 (2026-11-21 로컬 실제 호출로 확인)
   'getScheduleCandidates', 'archiveContract', 'getMyContracts', 'getMyContract',
   'getSchedules', 'getSchedule', 'updateSchedule', 'deleteSchedule', 'getNotifications',
