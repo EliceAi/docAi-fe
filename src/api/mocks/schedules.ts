@@ -55,6 +55,13 @@ export const mockConflictCandidateSet: ScheduleCandidateSet = {
   ],
 }
 
+export const mockLeaseCandidateSet: ScheduleCandidateSet = {
+  analysisId: 2, contractId: 2, contractTitle: '역삼동 원룸 월세 계약서',
+  candidates: mockContractDetails.find(contract => contract.contractId === 2)!.schedules.map((schedule, index) => ({
+    candidateId: index + 1, title: schedule.title, date: schedule.date, source: schedule.source, where: '', recommended: true,
+  })),
+}
+
 export const mockScheduleChangeSet: ScheduleChangeSet = {
   comparisonId: 1,
   contractId: 2,
@@ -62,8 +69,8 @@ export const mockScheduleChangeSet: ScheduleChangeSet = {
   fromVersion: 1,
   toVersion: 2,
   changes: [
-    { scheduleId: 1, action: 'UPDATE', title: '입주·전입신고', beforeDate: '2026.11.20', afterDate: '2026.12.01', source: 'written' },
-    { scheduleId: 4, action: 'UPDATE', title: '계약 종료', beforeDate: '2028.11.19', afterDate: '2028.11.30', source: 'written' },
+    { scheduleId: 7, action: 'UPDATE', title: '입주·전입신고', beforeDate: '2026.11.20', afterDate: '2026.12.01', source: 'written' },
+    { scheduleId: 8, action: 'UPDATE', title: '계약 종료', beforeDate: '2028.11.19', afterDate: '2028.11.30', source: 'written' },
     { scheduleId: null, candidateId: 412, action: 'CREATE', title: '임대차 변경 신고', beforeDate: null, afterDate: '2026.12.12', source: 'review', note: '변경 계약일 + 30일' },
   ],
 }

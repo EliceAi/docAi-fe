@@ -5,6 +5,7 @@
 
 ## 실행
 - `npm run backend` → 백엔드(docAi-be)와 DB를 Docker로 띄운다. `../docAi-be`에 clone돼 있어야 한다. 끄기 `backend:stop`, 로그 `backend:logs`, 백엔드 코드를 pull한 뒤 `backend:restart`
+- AI 분석·챗봇을 실제로 돌리려면 `.env.backend`(커밋 안 함)에 `OPENAI_API_KEY`, `LAW_API_KEY`를 넣고 `npm run backend`로 다시 켠다. 법령 DB는 한 번만 적재한다(`#49` 참고). 분석 1회에 약 400원이 든다.
 - `npm run dev` → http://localhost:5173 (보드 모아 보기 `/dev/boards`)
 - `npm run dev:phone` → 같은 와이파이의 휴대폰에서 `https://PC주소:5173` (카메라 테스트)
 - `npm run build` → PR 전에 반드시 통과

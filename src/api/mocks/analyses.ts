@@ -2,6 +2,15 @@ import type { Analysis, AnalysisProgress, AnalysisResult, AnalysisStatus, Clause
 import { mockDocumentTypes } from './documentTypes'
 import { mockContractDetails } from './contracts'
 import { toAnalysisResult, toClauseDetail, type BackendAnalysis, type BackendClause } from '../backendResponses'
+import { employmentAnalysisResponse, employmentClauseResponses } from './real/employmentAnalysis'
+
+// #48 배포(mock)용: 등록·홈 예시로 여는 분석 1번은 실제 AI 응답(분석 4037)을 보여 준다.
+// 보드(S08_분석결과_정상 등)는 와이어프레임 예시인 mockNormalAnalysis를 그대로 쓴다.
+const demoEmploymentResult = toAnalysisResult(employmentAnalysisResponse as BackendAnalysis)
+export const mockDemoEmploymentAnalysis: AnalysisResult = { ...demoEmploymentResult, analysisId: 1, contractId: 1, isSample: true }
+export const mockDemoEmploymentClauseDetails: ClauseDetail[] = (employmentClauseResponses as BackendClause[]).map(clause => toClauseDetail(clause, {
+  analysisId: 1, contractId: 1, documentTitle: demoEmploymentResult.documentTitle, analyzedAt: demoEmploymentResult.analyzedAt,
+}))
 
 export const mockRequestedAnalysis: { analysisId: number; status: AnalysisStatus } = { analysisId: 1, status: 'IN_PROGRESS' }
 

@@ -95,7 +95,8 @@ export function HomeScreen({ upcoming, onStartSample, sampleFailed = false }: Ho
         <Mascot face={4} size={46} />
         <span style={{ flex: 1 }}>
           <b>예시 계약서로 먼저 해보기</b><br />
-          <span className="mut">카페 알바 근로계약서 · 예시</span>
+          {/* #48: 예시는 실제 AI 분석 응답(근로계약서(안))이라 와이어프레임의 "카페 알바" 대신 그 제목을 쓴다 */}
+          <span className="mut">근로계약서(안) · 예시</span>
         </span>
         <Icon name="chev" size={18} />
       </a>

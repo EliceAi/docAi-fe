@@ -2,6 +2,7 @@ import { mockNotifications } from './mocks/notifications'
 import { mockResponse, shouldMock } from './mock-mode'
 import { request } from './request'
 import { toNotifications } from './backendResponses'
+import { getMockSchedules } from './schedules'
 
 // 응답 상세는 API 명세에 아직 없다. 와이어프레임 P01 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
 
@@ -18,14 +19,26 @@ export type Notification = {
   read: boolean
 }
 
+function getMockNotifications(): Notification[] {
+  const schedules = getMockSchedules()
+  return mockNotifications.flatMap(notice => {
+    if (notice.kind !== 'SCHEDULE') return [notice]
+    const scheduleId = Number(notice.to.match(/^\/schedules\/(\d+)$/)?.[1])
+    const schedule = schedules.find(schedule => schedule.scheduleId === scheduleId)
+    if (!schedule) return []
+    const remaining = schedule.daysLeft === 0 ? 'D-day' : schedule.daysLeft > 0 ? `D-${schedule.daysLeft}` : `D+${Math.abs(schedule.daysLeft)}`
+    return [{ ...notice, title: `${remaining} · ${schedule.title}가 다가와요`, text: schedule.contractTitle }]
+  })
+}
+
 /** GET /api/notifications */
 export function getNotifications(): Promise<Notification[]> {
-  if (shouldMock('getNotifications')) return mockResponse(mockNotifications)
+  if (shouldMock('getNotifications')) return mockResponse(getMockNotifications())
   return request<Parameters<typeof toNotifications>[0]>('/api/notifications').then(toNotifications)
 }
 
 /** GET /api/notifications/unread-count */
 export function getUnreadNotificationCount(): Promise<{ count: number }> {
-  if (shouldMock('getUnreadNotificationCount')) return mockResponse({ count: mockNotifications.filter(notice => !notice.read).length })
+  if (shouldMock('getUnreadNotificationCount')) return mockResponse({ count: getMockNotifications().filter(notice => !notice.read).length })
   return request<{ unreadCount: number }>('/api/notifications/unread-count').then(({ unreadCount }) => ({ count: unreadCount }))
 }

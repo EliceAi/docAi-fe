@@ -1,6 +1,7 @@
 import { mockDocumentTypes } from './mocks/documentTypes'
 import { mockComparisonDocuments, mockComparisonPreview, mockComparisonResults } from './mocks/comparisons'
-import { getMyContract, reuploadPage } from './contracts'
+import { getMockContract, getMyContract, reuploadPage, saveMockContract } from './contracts'
+import { getMockSchedules, normalizeDate, replaceMockSchedules } from './schedules'
 import { getAnalysisProgress, requestAnalysis } from './analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
@@ -60,7 +61,8 @@ function isMockOnly(contractId: number) {
 export async function getComparisonDocuments(previous: number, current: number): Promise<[ComparisonDocument, ComparisonDocument]> {
   if (!validPair(previous, current)) throw new Error('서로 다른 이전본과 수정본을 골라 주세요.')
   async function load(contractId: number): Promise<ComparisonDocument> {
-    if (isMockOnly(contractId) || shouldMock('getMyContract')) {
+    // 비교 API가 아직 mock이면 카드도 비교 예시 계약서로 읽는다(실제 계약서와 섞이지 않게)
+    if (isMockOnly(contractId) || shouldMock('getMyContract') || shouldMock('previewComparison')) {
       const document = mockComparisonDocuments.find(document => document.contractId === contractId)
       if (!document) throw new Error('비교할 계약서를 찾을 수 없어요.')
       return mockResponse(document)
@@ -270,6 +272,7 @@ export async function submitComparisonInputs(comparisonId: number, inputs: { lab
 /** 수정본 확정 때 함께 바꿀 일정(명세). UPDATE·DELETE는 이전본 일정 번호, CREATE는 수정본 분석의 후보 번호 */
 export type ConfirmSchedule = { action: 'UPDATE' | 'CREATE' | 'DELETE'; scheduleId: number | null; candidateId?: number; title?: string; date?: string }
 export type ConfirmResult = { contractId: number; version: number; previousVersion: number; savedSchedules: { scheduleId: number; title: string; date: string }[] }
+const confirmedRequests = new Map<string, { idempotencyKey: string; content: string; response: ConfirmResult }>()
 
 /**
  * POST /api/comparisons/{comparisonId}/confirm: 수정본을 v2로 보관하고 일정을 한 번에 바꾼다(명세, 한 트랜잭션).
@@ -279,9 +282,48 @@ export async function confirmComparison(comparisonId: number, schedules: Confirm
   validComparisonId(comparisonId)
   if (mockOnlyResult(comparisonId) || shouldMock('confirmComparison')) {
     const result = readMockResult(comparisonId)
-    const version = result.currentVersion ?? 2
-    return mockResponse({ contractId: result.previousContractId, version, previousVersion: version - 1,
-      savedSchedules: schedules.filter(schedule => schedule.action !== 'DELETE').map((schedule, index) => ({ scheduleId: schedule.scheduleId ?? 2000 + index, title: schedule.title ?? '', date: schedule.date ?? '' })) })
+    const key = `docai.comparison-confirm.${comparisonId}:${idempotencyKey}`
+    const content = JSON.stringify(schedules)
+    let cached = confirmedRequests.get(key) ?? null
+    try { if (!cached && typeof window !== 'undefined') cached = JSON.parse(window.sessionStorage.getItem(key) ?? 'null') } catch { /* 손상된 저장 데이터는 무시한다. */ }
+    if (cached?.idempotencyKey === idempotencyKey) {
+      if (cached.content !== content) throw new Error('다른 내용을 확정하려면 새 요청으로 다시 시도해 주세요.')
+      return mockResponse(cached.response)
+    }
+    const before = getMockContract(result.previousContractId)
+    const current = getMockContract(result.currentContractId)
+    const previousSchedules = getMockSchedules().filter(schedule => schedule.contractId === before.contractId)
+    const revisedSchedules = getMockSchedules().filter(schedule => schedule.contractId === current.contractId)
+    // 요청 전체를 먼저 검증한다. 잘못된 변경 하나 때문에 나머지가 일부만 저장되지 않게 한다.
+    const changes = schedules.map(change => {
+      const original = previousSchedules.find(schedule => schedule.scheduleId === change.scheduleId)
+      if (!['UPDATE', 'CREATE', 'DELETE'].includes(change.action) || change.action !== 'CREATE' && !original) throw new Error('바꿀 일정을 확인해 주세요.')
+      const title = (change.title ?? original?.title ?? '').trim()
+      const date = change.action === 'DELETE' ? null : normalizeDate(change.date ?? '')
+      if (!title || change.action !== 'DELETE' && !date) throw new Error('저장할 일정의 이름과 날짜를 확인해 주세요.')
+      return { ...change, title, date, source: revisedSchedules.find(schedule => schedule.title === title)?.source ?? original?.source ?? 'review' as const }
+    })
+    const revised = revisedSchedules.map(schedule => ({ title: schedule.title, date: schedule.date, source: schedule.source ?? 'review' as const }))
+    for (const change of changes) {
+      const index = revised.findIndex(schedule => schedule.title === change.title)
+      if (change.action === 'DELETE') { if (index >= 0) revised.splice(index, 1) }
+      else {
+        const value = { title: change.title, date: change.date!, source: change.source }
+        if (index >= 0) revised[index] = value
+        else revised.push(value)
+      }
+    }
+    const saved = changes.length ? replaceMockSchedules(current, revised) : revisedSchedules
+    const keyTerms = current.contractId >= 1000 ? current.keyTerms.map(term => {
+      const change = result.changes.find(change => change.label === term.label || term.label === '기간' && change.label === '계약 기간')
+      return change?.after ? { ...term, value: change.after } : term
+    }) : current.keyTerms
+    saveMockContract({ ...current, keyTerms, previousVersion: { contractId: before.contractId, version: before.version, savedAt: before.savedAt } })
+    const response: ConfirmResult = { contractId: current.contractId, version: current.version, previousVersion: before.version,
+      savedSchedules: saved.filter(schedule => changes.some(change => change.action !== 'DELETE' && change.title === schedule.title)).map(schedule => ({ scheduleId: schedule.scheduleId, title: schedule.title, date: schedule.date.replaceAll('.', '-') })) }
+    confirmedRequests.set(key, { idempotencyKey, content, response })
+    try { if (typeof window !== 'undefined') window.sessionStorage.setItem(key, JSON.stringify({ idempotencyKey, content, response })) } catch { /* 현재 탭의 보관·일정 상태는 유지한다. */ }
+    return mockResponse(response)
   }
   return request(`/api/comparisons/${comparisonId}/confirm`, { ...jsonBody('POST', { schedules }), headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey } })
 }

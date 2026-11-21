@@ -1,4 +1,4 @@
-import { mockClauseDetail, mockFailedAnalysisId, mockFailedProgress, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockMultipleLawAnalysis, mockMultipleLawClauseDetail, mockNormalAnalysis, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses, mockUncertainAnalysis, mockUncertainClauseDetail } from './mocks/analyses'
+import { mockClauseDetail, mockDemoEmploymentAnalysis, mockDemoEmploymentClauseDetails, mockFailedAnalysisId, mockFailedProgress, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockMultipleLawAnalysis, mockMultipleLawClauseDetail, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses, mockUncertainAnalysis, mockUncertainClauseDetail } from './mocks/analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { ApiError } from './http'
@@ -78,7 +78,7 @@ const mockAnalysisOverrides = new Map<number, AnalysisResult>()
 
 function findMockAnalysis(analysisId: number) {
   return mockAnalysisOverrides.get(analysisId)
-    ?? [mockNormalAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockMultipleLawAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
+    ?? [mockDemoEmploymentAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockMultipleLawAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
 }
 
 function isBackendDocumentType(code: string) {
@@ -168,7 +168,7 @@ export function getAnalysis(analysisId: number): Promise<AnalysisResult> {
 
 /** GET /api/analyses/samples/{documentTypeCode}: 홈 "예시 계약서로 먼저 해보기" */
 export async function getSampleAnalysis(documentTypeCode: string): Promise<AnalysisResult> {
-  const mockSample = [mockNormalAnalysis, mockLeaseAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.documentTypeCode === documentTypeCode)
+  const mockSample = [mockDemoEmploymentAnalysis, mockLeaseAnalysis, ...mockGeneralAnalyses].find(analysis => analysis.documentTypeCode === documentTypeCode)
   const sampleId = SAMPLE_ANALYSIS_IDS[documentTypeCode]
   if (!sampleId || shouldMock('getSampleAnalysis')) {
     return mockSample ? mockResponse(mockSample) : Promise.reject(new Error('예시 분석 결과를 찾을 수 없어요.'))
@@ -224,7 +224,7 @@ export async function getClause(analysisId: number, clauseId: number): Promise<C
   if (sampleClause) return mockResponse(sampleClause)
   const analysis = sampleResults.get(analysisId) ?? findMockAnalysis(analysisId)
   if (sampleCodeOf(analysisId) || (analysis && !isBackendDocumentType(analysis.documentTypeCode)) || shouldMock('getClause')) {
-    const clause = [mockClauseDetail, mockLeaseClauseDetail, mockUncertainClauseDetail, mockMultipleLawClauseDetail].find(clause => clause.contractId === analysis?.contractId && clause.clauseId === clauseId)
+    const clause = [mockClauseDetail, ...mockDemoEmploymentClauseDetails, mockLeaseClauseDetail, mockUncertainClauseDetail, mockMultipleLawClauseDetail].find(clause => clause.contractId === analysis?.contractId && clause.clauseId === clauseId)
     return clause ? mockResponse({ ...clause, analysisId }) : Promise.reject(new Error('조항을 찾을 수 없어요.'))
   }
   // 조항 응답에는 계약서 이름·분석일이 없어 분석 결과에서 함께 받는다

@@ -1,9 +1,97 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 let api: typeof import('./comparisons')
-beforeEach(async () => { vi.resetModules(); api = await import('./comparisons') })
+// 비교 mock 흐름을 검사한다. 로컬 .env.local의 real 모드와 상관없이 mock으로 돌린다
+beforeEach(async () => { vi.stubEnv('VITE_API_MODE', 'mock'); vi.resetModules(); api = await import('./comparisons') })
 
 describe('S11 비교 준비', () => {
+  it('근로계약서 수정본의 종료일도 일정과 계약서 조건에 같은 날짜로 저장한다', async () => {
+    const schedules = await import('./schedules')
+    const contracts = await import('./contracts')
+    const changes = await schedules.getScheduleChanges(50)
+    expect(changes).toMatchObject({ contractId: 1001, fromVersion: 1, toVersion: 2 })
+    const payload = changes.changes.map(change => ({ action: change.action, scheduleId: change.scheduleId, candidateId: change.candidateId, title: change.title, ...(change.afterDate ? { date: change.afterDate } : {}) }))
+    const saved = await api.confirmComparison(50, payload, 'employment-revised')
+    const revised = await contracts.getMyContract(saved.contractId)
+    expect(revised.keyTerms.find(term => term.label === '기간')?.value).toContain('2027.03.31')
+    expect(revised.schedules).toContainEqual(expect.objectContaining({ title: '계약 종료', date: '2027.03.31' }))
+    expect((await contracts.getMyContract(1)).keyTerms.find(term => term.label === '기간')?.value).toContain('27.02.28')
+  })
+
+  it('역순 확정도 선택한 버전으로 보관하고 이전 버전 보기에서 순환하지 않는다', async () => {
+    const contracts = await import('./contracts')
+    const schedules = await import('./schedules')
+    const old = await contracts.getMyContract(2)
+    const reversed = await api.createComparison(2, 4)
+    const changes = await schedules.getScheduleChanges(reversed.comparisonId)
+    const payload = changes.changes.map(change => ({ action: change.action, scheduleId: change.scheduleId, candidateId: change.candidateId, title: change.title, ...(change.afterDate ? { date: change.afterDate.replaceAll('.', '-') } : {}) }))
+    const saved = await api.confirmComparison(reversed.comparisonId, payload, 'reverse-history')
+    expect(saved).toMatchObject({ contractId: 4, version: 1, previousVersion: 2 })
+    expect(await contracts.getMyContract(4)).toMatchObject({ version: 1, previousVersion: { contractId: 2, version: 2 } })
+    const previous = await contracts.getMyContract(2)
+    expect(previous.keyTerms).toEqual(old.keyTerms)
+    expect(previous.schedules).toEqual(old.schedules)
+    const seen = new Set<number>()
+    let current = await contracts.getMyContract(4)
+    while (current.previousVersion) {
+      expect(seen.has(current.contractId)).toBe(false)
+      seen.add(current.contractId)
+      current = await contracts.getMyContract(current.previousVersion.contractId)
+    }
+    expect(current.version).toBe(1)
+    expect((await contracts.getMyContracts()).filter(contract => contract.title === '역삼동 원룸 월세 계약서').map(contract => contract.contractId)).toEqual([4])
+  })
+
+  it('mock 전용 21종은 실제 모드에서도 일정 후보·변경·보관까지 같은 문서로 이어진다', async () => {
+    const schedules = await import('./schedules')
+    const contracts = await import('./contracts')
+    const { mockGeneralAnalyses } = await import('./mocks/analyses')
+    const mode = await import('./mock-mode')
+    const request = await import('./request')
+    const ready = vi.spyOn(mode, 'shouldMock').mockReturnValue(false)
+    const network = vi.spyOn(request, 'request').mockRejectedValue(new Error('실제 API 호출 금지'))
+    try {
+      for (const analysis of mockGeneralAnalyses) {
+        expect(await schedules.getScheduleCandidates(analysis.analysisId)).toMatchObject({ contractId: analysis.contractId, contractTitle: analysis.documentTitle, candidates: [] })
+        const created = await api.createComparison(analysis.contractId, analysis.contractId + 1000)
+        expect(await schedules.getScheduleChanges(created.comparisonId)).toMatchObject({ contractId: analysis.contractId + 1000, fromVersion: 1, toVersion: 2, changes: [] })
+        const saved = await api.confirmComparison(created.comparisonId, [], `general-${analysis.contractId}`)
+        expect(await contracts.getMyContract(saved.contractId)).toMatchObject({ documentTypeCode: analysis.documentTypeCode, version: 2 })
+        await contracts.archiveContract(analysis.contractId, [], `archive-${analysis.contractId}`)
+      }
+      expect(network).not.toHaveBeenCalled()
+    } finally { ready.mockRestore(); network.mockRestore() }
+  })
+
+  it('S13에서 확정한 수정본과 일정이 같은 계약서로 저장되고 v1은 유지된다', async () => {
+    const contracts = await import('./contracts')
+    const schedules = await import('./schedules')
+    const old = await contracts.getMyContract(4)
+    const changes = await schedules.getScheduleChanges(1)
+    const payload = changes.changes.map(change => ({ action: change.action, scheduleId: change.scheduleId, candidateId: change.candidateId, title: change.title, ...(change.afterDate ? { date: change.afterDate.replaceAll('.', '-') } : {}) }))
+    payload[0].date = '2026-12-03'
+    const saved = await api.confirmComparison(1, payload, 'confirm-schedules')
+    expect(saved).toMatchObject({ contractId: 2, version: 2, previousVersion: 1 })
+    expect(await contracts.getMyContract(4)).toEqual(old)
+    const revised = await contracts.getMyContract(saved.contractId)
+    expect(revised).toMatchObject({ version: 2, previousVersion: { contractId: 4, version: 1 } })
+    expect(revised.schedules).toContainEqual(expect.objectContaining({ title: '입주·전입신고', date: '2026.12.03' }))
+    for (const schedule of revised.schedules) expect(await schedules.getSchedule(schedule.scheduleId)).toMatchObject({ contractId: 2, title: schedule.title, date: schedule.date })
+    expect(await api.confirmComparison(1, payload, 'confirm-schedules')).toEqual(saved)
+    expect((await contracts.getMyContract(2)).schedules).toHaveLength(3)
+    await expect(api.confirmComparison(1, [{ ...payload[0], date: '2026-12-04' }], 'confirm-schedules')).rejects.toThrow()
+  })
+
+  it('확정 요청에 잘못된 날짜가 섞이면 일정과 계약서를 일부만 저장하지 않는다', async () => {
+    const schedules = await import('./schedules')
+    const before = await schedules.getSchedules()
+    await expect(api.confirmComparison(1, [
+      { action: 'UPDATE', scheduleId: 7, title: '입주·전입신고', date: '2026-12-03' },
+      { action: 'UPDATE', scheduleId: 8, title: '계약 종료', date: '2026-02-30' },
+    ], 'invalid-dates')).rejects.toThrow()
+    expect(await schedules.getSchedules()).toEqual(before)
+  })
+
   it('S08에서 넘긴 이전 v1과 현재 v2를 정확한 ID로 조회한다', async () => {
     const [before, after] = await api.getComparisonDocuments(4, 2)
     expect(before).toMatchObject({ contractId: 4, version: 1, pageCount: 2, analyzedAt: '11.05' })
