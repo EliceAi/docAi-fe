@@ -19,12 +19,12 @@ export function SchedulesPage() {
       </Screen>
     </div>
   )
-  return <SchedulesView schedules={data} />
+  return <SchedulesView schedules={data} latestFirst />
 }
 
-type SchedulesViewProps = { schedules: Schedule[]; initialView?: 'list' | 'calendar'; showSaved?: boolean }
+type SchedulesViewProps = { schedules: Schedule[]; initialView?: 'list' | 'calendar'; showSaved?: boolean; latestFirst?: boolean }
 
-export function SchedulesView({ schedules, initialView, showSaved = false }: SchedulesViewProps) {
+export function SchedulesView({ schedules, initialView, showSaved = false, latestFirst = false }: SchedulesViewProps) {
   const [routeParams, setRouteParams] = useSearchParams()
   const location = useLocation()
   const [previewParams, setPreviewParams] = useState(() => new URLSearchParams())
@@ -34,7 +34,8 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
     if (location.pathname === '/schedules') setRouteParams(next, { replace: true })
     else setPreviewParams(next)
   }
-  const initialDate = schedules[0]?.date.replaceAll('.', '-') ?? mockScheduleToday
+  const [today] = useState(() => latestFirst ? dateKey(new Date()) : mockScheduleToday)
+  const initialDate = latestFirst ? location.state?.savedDate ?? today : schedules[0]?.date.replaceAll('.', '-') ?? today
   const requestedDate = params.get('date')
   const selected = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && dateKey(scheduleDate(requestedDate)) === requestedDate ? requestedDate : initialDate
   const requestedMonth = params.get('month')
@@ -68,7 +69,8 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
     selectDate(dateKey(date))
   }
 
-  const sorted = [...schedules].sort((a, b) => a.date.localeCompare(b.date) || a.scheduleId - b.scheduleId)
+  const sorted = [...schedules].sort((a, b) => (latestFirst ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)) || a.scheduleId - b.scheduleId)
+  const justSaved = savedVisible && latestFirst ? sorted.filter(schedule => location.state?.savedScheduleIds?.includes(schedule.scheduleId)) : []
   const groups = new Map<string, Schedule[]>()
   sorted.forEach(schedule => {
     const key = schedule.date.slice(0, 7)
@@ -92,6 +94,11 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
             <a role="button" tabIndex={0} className={view === 'list' ? 'on' : ''} aria-pressed={view === 'list'} onClick={() => setView('list')}><Icon name="list" size={16} />목록</a>
             <a role="button" tabIndex={0} className={view === 'calendar' ? 'on' : ''} aria-pressed={view === 'calendar'} onClick={() => setView('calendar')}><Icon name="cal" size={16} />달력</a>
           </div>
+          {latestFirst && <div className="note">최신 계약서의 일정만 보여요. 목록은 날짜가 최신인 순서예요.</div>}
+          {view === 'list' && justSaved.length > 0 && <div className="card">
+            <div className="h2">방금 저장한 일정</div>
+            {justSaved.map(schedule => <ScheduleEntry key={schedule.scheduleId} schedule={schedule} showFullDate />)}
+          </div>}
           {view === 'list' ? [...groups].map(([key, entries], index) => (
             <div key={key} style={{ display: 'contents' }}>
               <div className="mh">{index === 0 || key.slice(0, 4) !== [...groups.keys()][index - 1].slice(0, 4) ? `${Number(key.slice(0, 4))}년 ` : ''}{Number(key.slice(5))}월</div>
@@ -104,6 +111,10 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
                 <b>{currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월</b>
                 <span role="button" tabIndex={0} aria-label="다음 달" onClick={() => changeMonth(1)}>›</span>
               </div>
+              {latestFirst && <div className="row" style={{ marginBottom: 12 }}>
+                <input type="month" aria-label="달력 연월 선택" value={month} onChange={event => { if (event.target.value) selectDate(event.target.value + '-01') }} />
+                <Button kind="l" small onClick={() => selectDate(today)}>오늘</Button>
+              </div>}
               <div className="calg" aria-label="일정 달력">
                 {weekdays.map(day => <span key={day} className="w">{day}</span>)}
                 {Array.from({ length: calendarSize }, (_, index) => {
@@ -112,7 +123,7 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
                   const key = dateKey(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day, 12))
                   const hasSchedule = schedules.some(schedule => schedule.date.replaceAll('.', '-') === key)
                   return <span key={index} role="button" tabIndex={0} aria-label={`${key}${hasSchedule ? ' 일정 있음' : ''}`} aria-pressed={selected === key}
-                               aria-current={mockScheduleToday === key ? 'date' : undefined} className={selected === key ? 'pick' : mockScheduleToday === key ? 'today' : ''} onClick={() => selectDate(key)}>
+                               aria-current={today === key ? 'date' : undefined} className={selected === key ? 'pick' : today === key ? 'today' : ''} onClick={() => selectDate(key)}>
                     {day}{hasSchedule && <i aria-hidden="true" />}
                   </span>
                 })}
@@ -130,14 +141,14 @@ export function SchedulesView({ schedules, initialView, showSaved = false }: Sch
   )
 }
 
-export function ScheduleEntry({ schedule }: { schedule: Schedule }) {
+export function ScheduleEntry({ schedule, showFullDate = false }: { schedule: Schedule; showFullDate?: boolean }) {
   const location = useLocation()
   const date = scheduleDate(schedule.date)
   const color = schedule.color ?? (schedule.daysLeft <= 14 ? 'red' : schedule.daysLeft <= 21 ? 'blu' : 'gry')
   return <Link className="er" to={`/schedules/${schedule.scheduleId}`} state={{ scheduleReturn: location.pathname === '/schedules' ? location.pathname + location.search : '/schedules' }}>
     <span className="ed"><b>{date.getDate()}</b><small>{weekdays[date.getDay()]}</small></span>
     <span style={{ flex: 1, minWidth: 0 }}><b>{schedule.title}</b>{' '}<Tag color={color}>{dday(schedule.daysLeft)}</Tag><br />
-      <span className="mut">{schedule.contractTitle}{schedule.note && ` · ${schedule.note}`}</span>
+      <span className="mut">{showFullDate && `${schedule.date} · `}{schedule.contractTitle}{schedule.note && ` · ${schedule.note}`}</span>
     </span><Icon name="chev" size={16} />
   </Link>
 }

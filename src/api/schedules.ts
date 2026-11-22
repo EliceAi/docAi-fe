@@ -1,4 +1,4 @@
-import { mockConflictAnalysisId, mockConflictCandidateSet, mockLeaseCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet, mockScheduleToday } from './mocks/schedules'
+import { mockConflictAnalysisId, mockConflictCandidateSet, mockLeaseCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet } from './mocks/schedules'
 import { mockDeployAdditionalSchedules, mockDeployStoredSchedules, mockVideoCandidateSet, mockVideoLeaseCandidateSet } from './mocks/videoDeploy'
 import { VIDEO_ANALYSIS_ID, VIDEO_LEASE_ANALYSIS_ID } from './mocks/analyses'
 import { getAnalysis, type ValueSource } from './analyses'
@@ -6,7 +6,7 @@ import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { toScheduleCandidateSet, toScheduleChangeSet, toScheduleDetail, toUpcomingSchedule } from './backendResponses'
 import { getComparison, knownComparisonContracts } from './comparisons'
-import { getMockContract, getMyContract } from './contracts'
+import { getMockContract, getMockCurrentContracts, getMyContract } from './contracts'
 
 // 응답 상세는 API 명세에 아직 없다. 와이어프레임 S13·S14·홈 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
 
@@ -56,8 +56,22 @@ export function getMockSchedules() {
   restoreSchedules()
   return [...new Map([...mockDeployStoredSchedules, ...mockDeployAdditionalSchedules, ...savedSchedules.values()].map(schedule => [schedule.scheduleId, schedule])).values()]
     .filter(schedule => !deletedScheduleIds.has(schedule.scheduleId))
-    .map(schedule => scheduleOverrides.get(schedule.scheduleId) ?? schedule)
+    .map(schedule => {
+      const current = scheduleOverrides.get(schedule.scheduleId) ?? schedule
+      return { ...current, daysLeft: daysUntil(current.date) }
+    })
     .sort((a, b) => a.date.localeCompare(b.date) || a.scheduleId - b.scheduleId)
+}
+
+function daysUntil(date: string) {
+  const today = new Date()
+  return Math.round((Date.parse(date.replaceAll('.', '-') + 'T00:00:00Z') - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000)
+}
+
+/** 전체 목록은 최신 계약서만, 이전 버전 상세는 당시 일정을 그대로 조회한다. */
+export function getMockCurrentSchedules() {
+  const currentIds = new Set(getMockCurrentContracts().map(contract => contract.contractId))
+  return getMockSchedules().filter(schedule => currentIds.has(schedule.contractId))
 }
 
 /** 보관·확정한 계약서의 일정만 교체한다. 이전 버전이나 다른 계약서의 일정은 유지한다. */
@@ -76,7 +90,7 @@ export function replaceMockSchedules(contract: { contractId: number; title: stri
       scheduleId, title: value.title, date: value.date!.replaceAll('-', '.'), source: value.source,
       contractId: contract.contractId, contractTitle: contract.title, documentTypeCode: contract.documentTypeCode,
       contractAnalyzedAt: contract.savedAt.slice(5).replaceAll('-', '.'),
-      daysLeft: Math.round((Date.parse(value.date! + 'T00:00:00Z') - Date.parse(mockScheduleToday + 'T00:00:00Z')) / 86400000),
+      daysLeft: daysUntil(value.date!),
     }
   })
   for (const schedule of previous) if (!used.has(schedule.scheduleId)) deletedScheduleIds.add(schedule.scheduleId)
@@ -185,13 +199,13 @@ export async function getScheduleChanges(comparisonId: number): Promise<Schedule
 
 /** GET /api/schedules/upcoming: 홈 "다가오는 일정" */
 export function getUpcomingSchedules(): Promise<Schedule[]> {
-  if (shouldMock('getUpcomingSchedules')) return mockResponse(getMockSchedules().filter(schedule => schedule.daysLeft >= 0).slice(0, 2))
+  if (shouldMock('getUpcomingSchedules')) return mockResponse(getMockCurrentSchedules().filter(schedule => schedule.daysLeft >= 0).slice(0, 2))
   return request<Parameters<typeof toUpcomingSchedule>[0][]>('/api/schedules/upcoming').then(items => items.map(toUpcomingSchedule))
 }
 
 /** GET /api/schedules */
 export function getSchedules(): Promise<Schedule[]> {
-  if (shouldMock('getSchedules')) return mockResponse(getMockSchedules())
+  if (shouldMock('getSchedules')) return mockResponse(getMockCurrentSchedules().sort((a, b) => b.date.localeCompare(a.date) || a.scheduleId - b.scheduleId))
   // 백엔드는 다가오는 일정과 같은 모양의 배열을 준다(2026-11-21 확인)
   return request<Parameters<typeof toUpcomingSchedule>[0][]>('/api/schedules').then(items => items.map(toUpcomingSchedule))
 }
@@ -219,7 +233,7 @@ export function updateSchedule(scheduleId: number, changes: Partial<Pick<Schedul
       ...(changes.title !== undefined ? { title: changes.title.trim() } : {}),
       ...(date !== undefined ? {
         date: date.replaceAll('-', '.'),
-        daysLeft: Math.round((Date.parse(date + 'T00:00:00Z') - Date.parse(mockScheduleToday + 'T00:00:00Z')) / 86400000),
+        daysLeft: daysUntil(date),
         source: 'typed',
         where: undefined,
       } : {}),

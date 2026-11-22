@@ -120,8 +120,8 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
     setMessage('')
     // 명세: 보관 API 한 번에 일정까지 저장한다. 다시 시도해도 같은 키라 두 번 저장되지 않는다
     const schedules = toSave.map(toArchiveSchedule)
-    await archiveContract(data.contractId, schedules, keyFor(schedules))
-    navigate('/schedules', { state: { schedulesSaved: schedules.length } })
+    const result = await archiveContract(data.contractId, schedules, keyFor(schedules))
+    navigate('/schedules', { state: { schedulesSaved: schedules.length, savedDate: schedules[0].date, savedScheduleIds: result.savedSchedules.map(schedule => schedule.scheduleId) } })
   }, initialFailed)
   const keepOnly = useSaving(async () => {
     await archiveContract(data.contractId, [], keyFor([]))
@@ -136,11 +136,11 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
     <div className="schedule-screen" onKeyDown={activateScheduleButton}>
       <Screen header={<Header title="일정 확인·등록" back={`/analyses/${data.analysisId}`} chatFrom="S13" contractId={data.contractId} />}
         footer={<Footer>
-          <Button kind="l" onClick={keepOnly.save}>일정 없이 보관</Button>
-          <Button onClick={save}>{needsDecision ? '저장' : `선택한 ${toSave.length}개 저장`}</Button>
+          <Button kind={toSave.length ? 'l' : 'p'} onClick={keepOnly.save}>일정 없이 보관</Button>
+          {toSave.length > 0 && <Button onClick={save}>{needsDecision ? '저장' : `선택한 ${toSave.length}개 저장`}</Button>}
         </Footer>}>
         <div className="row"><Icon name="doc" size={18} /><b>{data.contractTitle}</b></div>
-        <Say face={1} size={40}>계약서에서 찾은 날짜예요. <b>맞는지 확인하고</b> 저장할 일정을 골라 주세요.</Say>
+        <Say face={1} size={40}>{data.candidates.length ? <>계약서에서 찾은 날짜예요. <b>맞는지 확인하고</b> 저장할 일정을 골라 주세요.</> : <>계약서에서 일정으로 저장할 날짜를 찾지 못했어요. <b>직접 추가하거나 일정 없이 보관</b>할 수 있어요.</>}</Say>
         {groups.map(group => (
           <div className="card" key={group[0].title}>
             <div className="h2"><Icon name="warn" size={16} /> {subjectParticle(group[0].title)} 두 곳에 달라요</div>
@@ -166,7 +166,7 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
               : <Button kind="l" onClick={() => setEditingIds(ids => [...ids, candidate.candidateId])}>직접 입력</Button>}
           </div>
         ))}
-        {plain.length > 0 && (
+        {(
           <div className="card" style={{ padding: '4px 16px' }}>
             {plain.map(candidate => {
               const checked = checkedIds.includes(candidate.candidateId)
