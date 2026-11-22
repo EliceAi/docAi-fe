@@ -1,4 +1,6 @@
-import { mockAdditionalSchedules, mockConflictAnalysisId, mockConflictCandidateSet, mockLeaseCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet, mockScheduleToday, mockStoredSchedules } from './mocks/schedules'
+import { mockConflictAnalysisId, mockConflictCandidateSet, mockLeaseCandidateSet, mockScheduleCandidateSet, mockScheduleChangeSet, mockScheduleToday } from './mocks/schedules'
+import { mockDeployAdditionalSchedules, mockDeployStoredSchedules, mockVideoCandidateSet, mockVideoLeaseCandidateSet } from './mocks/videoDeploy'
+import { VIDEO_ANALYSIS_ID, VIDEO_LEASE_ANALYSIS_ID } from './mocks/analyses'
 import { getAnalysis, type ValueSource } from './analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
@@ -52,7 +54,7 @@ function persistSchedules() {
 /** mock 계약서 조회도 같은 일정 상태를 사용한다. 네트워크를 호출하지 않는 내부 저장소 조회다. */
 export function getMockSchedules() {
   restoreSchedules()
-  return [...new Map([...mockStoredSchedules, ...mockAdditionalSchedules, ...savedSchedules.values()].map(schedule => [schedule.scheduleId, schedule])).values()]
+  return [...new Map([...mockDeployStoredSchedules, ...mockDeployAdditionalSchedules, ...savedSchedules.values()].map(schedule => [schedule.scheduleId, schedule])).values()]
     .filter(schedule => !deletedScheduleIds.has(schedule.scheduleId))
     .map(schedule => scheduleOverrides.get(schedule.scheduleId) ?? schedule)
     .sort((a, b) => a.date.localeCompare(b.date) || a.scheduleId - b.scheduleId)
@@ -138,7 +140,8 @@ export async function getScheduleCandidates(analysisId: number): Promise<Schedul
   if (shouldMock('getScheduleCandidates') || !['EMPLOYMENT', 'LEASE'].includes(analysis.documentTypeCode)) {
     let candidates: ScheduleCandidate[] = []
     if (analysisId === mockConflictAnalysisId) candidates = mockConflictCandidateSet.candidates
-    else if (analysis.documentTypeCode === 'EMPLOYMENT') candidates = mockScheduleCandidateSet.candidates
+    else if (analysisId === VIDEO_LEASE_ANALYSIS_ID) candidates = mockVideoLeaseCandidateSet.candidates
+    else if (analysis.documentTypeCode === 'EMPLOYMENT') candidates = (analysisId === VIDEO_ANALYSIS_ID ? mockVideoCandidateSet : mockScheduleCandidateSet).candidates
     else if (analysis.documentTypeCode === 'LEASE') {
       const contract = getMockContract(analysis.contractId)
       candidates = contract.schedules.map((schedule, index) => ({ candidateId: index + 1, title: schedule.title, date: schedule.date, source: schedule.source, where: '', recommended: true }))

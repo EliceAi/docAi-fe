@@ -197,7 +197,7 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
       {analysis.unknowns && <div className="card">
         <div className="h2">{analysis.unknowns.title}</div><div className="mut">{analysis.unknowns.explanation}</div>
       </div>}
-      {!isPartial && !isLease && !isGeneral && <><div className="card">
+      {!isPartial && !isGeneral && (!isLease || analysis.clauses.length > 0) && <><div className="card">
         <div className="h2">빠진 항목 <Tag color="amb">{analysis.missingItems.length}</Tag></div>
         {analysis.missingItems.map(item => (
           <div key={item.title} className="li"><span style={{ flex: 1 }}><b>{item.title}</b><br /><span className="mut">{item.explanation}</span></span></div>

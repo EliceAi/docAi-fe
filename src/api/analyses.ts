@@ -1,8 +1,9 @@
-import { mockClauseDetail, mockDemoEmploymentAnalysis, mockDemoEmploymentClauseDetails, mockFailedAnalysisId, mockNormalAnalysis, mockFailedProgress, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockMultipleLawAnalysis, mockMultipleLawClauseDetail, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses, mockUncertainAnalysis, mockUncertainClauseDetail } from './mocks/analyses'
+import { mockClauseDetail, mockDemoEmploymentAnalysis, mockDemoEmploymentClauseDetails, mockFailedAnalysisId, mockVideoEmploymentAnalysis, mockVideoEmploymentClauseDetails, mockFailedProgress, mockGeneralAnalyses, mockLeaseAnalysis, mockLeaseClauseDetail, mockMultipleLawAnalysis, mockMultipleLawClauseDetail, mockPartialAnalysis, mockRequestedAnalysis, mockSimilarAnalysis, mockStoredAnalyses, mockUncertainAnalysis, mockUncertainClauseDetail } from './mocks/analyses'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { ApiError } from './http'
 import { toAnalysisProgress, toAnalysisResult, toClauseDetail, type BackendAnalysis, type BackendClause } from './backendResponses'
+import { mockVideoLeaseAnalysis, mockVideoLeaseClauseDetails } from './mocks/analyses'
 
 // 화면 타입은 와이어프레임 S07~S09 기준이고, 백엔드 응답(Notion API 명세 모양)은 backendResponses.ts에서 이 타입으로 바꾼다.
 
@@ -78,7 +79,7 @@ const mockAnalysisOverrides = new Map<number, AnalysisResult>()
 
 function findMockAnalysis(analysisId: number) {
   return mockAnalysisOverrides.get(analysisId)
-    ?? [mockNormalAnalysis, mockDemoEmploymentAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockMultipleLawAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
+    ?? [mockVideoEmploymentAnalysis, mockVideoLeaseAnalysis, mockDemoEmploymentAnalysis, mockPartialAnalysis, mockLeaseAnalysis, mockSimilarAnalysis, mockUncertainAnalysis, mockMultipleLawAnalysis, ...mockStoredAnalyses, ...mockGeneralAnalyses].find(analysis => analysis.analysisId === analysisId)
 }
 
 function isBackendDocumentType(code: string) {
@@ -224,7 +225,7 @@ export async function getClause(analysisId: number, clauseId: number): Promise<C
   if (sampleClause) return mockResponse(sampleClause)
   const analysis = sampleResults.get(analysisId) ?? findMockAnalysis(analysisId)
   if (sampleCodeOf(analysisId) || (analysis && !isBackendDocumentType(analysis.documentTypeCode)) || shouldMock('getClause')) {
-    const clause = [mockClauseDetail, ...mockDemoEmploymentClauseDetails, mockLeaseClauseDetail, mockUncertainClauseDetail, mockMultipleLawClauseDetail].find(clause => clause.contractId === analysis?.contractId && clause.clauseId === clauseId)
+    const clause = [mockClauseDetail, ...mockVideoEmploymentClauseDetails, ...mockVideoLeaseClauseDetails, ...mockDemoEmploymentClauseDetails, mockLeaseClauseDetail, mockUncertainClauseDetail, mockMultipleLawClauseDetail].find(clause => clause.contractId === analysis?.contractId && clause.clauseId === clauseId)
     return clause ? mockResponse({ ...clause, analysisId }) : Promise.reject(new Error('조항을 찾을 수 없어요.'))
   }
   // 조항 응답에는 계약서 이름·분석일이 없어 분석 결과에서 함께 받는다

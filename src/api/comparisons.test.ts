@@ -8,14 +8,21 @@ describe('S11 비교 준비', () => {
   it('근로계약서 수정본의 종료일도 일정과 계약서 조건에 같은 날짜로 저장한다', async () => {
     const schedules = await import('./schedules')
     const contracts = await import('./contracts')
+    const { mockContractDetails } = await import('./mocks/contracts')
+    // 비교 50번의 이전본은 영상 데이터와 분리된 와이어프레임 예시다.
+    const previousContract = mockContractDetails.find(contract => contract.contractId === 1)!
+    contracts.saveMockContract(previousContract)
+    schedules.replaceMockSchedules(previousContract, previousContract.schedules)
+    const v1 = await contracts.getMyContract(1)
     const changes = await schedules.getScheduleChanges(50)
     expect(changes).toMatchObject({ contractId: 1001, fromVersion: 1, toVersion: 2 })
+    expect(changes.changes).toContainEqual(expect.objectContaining({ action: 'UPDATE', title: '계약 종료', beforeDate: '2027.02.28', afterDate: '2027.03.31' }))
     const payload = changes.changes.map(change => ({ action: change.action, scheduleId: change.scheduleId, candidateId: change.candidateId, title: change.title, ...(change.afterDate ? { date: change.afterDate } : {}) }))
     const saved = await api.confirmComparison(50, payload, 'employment-revised')
     const revised = await contracts.getMyContract(saved.contractId)
     expect(revised.keyTerms.find(term => term.label === '기간')?.value).toContain('2027.03.31')
     expect(revised.schedules).toContainEqual(expect.objectContaining({ title: '계약 종료', date: '2027.03.31' }))
-    expect((await contracts.getMyContract(1)).keyTerms.find(term => term.label === '기간')?.value).toContain('27.02.28')
+    expect(await contracts.getMyContract(1)).toEqual(v1)
   })
 
   it('역순 확정도 선택한 버전으로 보관하고 이전 버전 보기에서 순환하지 않는다', async () => {

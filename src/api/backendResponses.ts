@@ -229,7 +229,7 @@ export function toClauseDetail(clause: BackendClause, context: { analysisId: num
 }
 
 // ----- 일정 후보·변경 후보 (S13) -----
-type BackendCandidateSet = {
+export type BackendCandidateSet = {
   contractId: number
   contractTitle: string
   candidates: { candidateId: number; title: string; date: string | null; source: 'WRITTEN' | 'REVIEW'; location: string; pageNo: number | null; selected: boolean; conflictGroup: string | null }[]

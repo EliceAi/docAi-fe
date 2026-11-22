@@ -315,7 +315,7 @@ export async function confirmComparison(comparisonId: number, schedules: Confirm
     }
     const saved = changes.length ? replaceMockSchedules(current, revised) : revisedSchedules
     const keyTerms = current.contractId >= 1000 ? current.keyTerms.map(term => {
-      const change = result.changes.find(change => change.label === term.label || term.label === '기간' && change.label === '계약 기간')
+      const change = result.changes.find(change => change.label === term.label || ['기간', '계약기간'].includes(term.label) && change.label === '계약 기간')
       return change?.after ? { ...term, value: change.after } : term
     }) : current.keyTerms
     saveMockContract({ ...current, keyTerms, previousVersion: { contractId: before.contractId, version: before.version, savedAt: before.savedAt } })

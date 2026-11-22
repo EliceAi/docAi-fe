@@ -7,6 +7,8 @@ import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Icon, LawSourceLink, Mascot, Sheet, Tag } from '../../common/components'
 import type { ChatOpening } from '../../common/layout/AppPanels'
 import { CHAT_FAILED_TEXT, needsLeaveConfirm, screenContext, screenIdsFromPath, SUGGESTED_QUESTIONS } from './chatRules'
+import './ChatPanel.css'
+import { shouldMock } from '../../api/mock-mode'
 
 // S10 AI 챗봇 패널 · #23 김지희 · 보드 13개는 boards.tsx 참고
 // 챗봇은 화면이 아니라 지금 화면 위에 올라오는 패널이라 주소가 없다(AppPanels 참고).
@@ -20,13 +22,14 @@ type ChatPanelProps = {
 
 export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const conversationContext = shouldMock('askChatQuestion') ? `${opening.from ?? 'S01'}:${opening.contractId ?? ''}:${pathname}${search}` : undefined
   const [messages, setMessages] = useState<ChatMessage[]>([mockGreeting])
   const [chips, setChips] = useState(SUGGESTED_QUESTIONS[opening.from ?? ''] ?? [])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [pending, setPending] = useState<ChatAction | null>(null)
-  const conversationId = useRef<number | undefined>(loadLastConversationId())
+  const conversationId = useRef<number | undefined>(loadLastConversationId(conversationContext))
 
   // 다시 열면 마지막 대화를 이어 보여 준다(명세: 대화 기록 조회)
   useEffect(() => {
@@ -48,9 +51,9 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
     // 다시 시도할 때는 실패 안내만 지우고, 같은 질문을 한 번 더 쌓지 않는다
     setMessages(list => retry ? list.filter(message => message.status !== 'FAILED') : [...list, { role: 'me', text }])
     try {
-      const answer = await askChatQuestion({ conversationId: conversationId.current, contractId: opening.contractId, screen: opening.from, ...screenIdsFromPath(pathname), question: text })
+      const answer = await askChatQuestion({ conversationId: conversationId.current, contractId: opening.contractId, screen: opening.from, ...screenIdsFromPath(pathname + search), question: text })
       conversationId.current = answer.conversationId
-      saveLastConversationId(answer.conversationId)
+      saveLastConversationId(answer.conversationId, conversationContext)
       setMessages(list => [...list, { role: 'ai', text: answer.answer, refs: answer.refs, actions: answer.actions, status: answer.status, face: answer.face }])
       setChips(answer.followUps ?? SUGGESTED_QUESTIONS[opening.from ?? ''] ?? [])
     } catch {
@@ -75,7 +78,7 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
 
   return (
     <>
-      <ChatPanelView linkedDoc={linkedDoc} context={screenContext(opening.from)} messages={messages} chips={chips} input={input}
+      <ChatPanelView linkedDoc={linkedDoc} context={screenContext(opening.from)} messages={messages} chips={chips} input={input} sending={sending}
         onInput={setInput} onSend={() => void send(input)} onChip={question => void send(question)} onAction={chooseAction}
         onRetry={() => void send(failedQuestion.current, true)} onClose={onClose} />
       {pending && (
@@ -108,6 +111,7 @@ type ChatPanelViewProps = {
   messages: ChatMessage[]
   chips: string[]
   input: string
+  sending?: boolean
   onInput?: (value: string) => void
   onSend?: () => void
   onChip?: (question: string) => void
@@ -117,9 +121,9 @@ type ChatPanelViewProps = {
 }
 
 /** 와이어프레임 chatPanel(): 보드와 실제 패널이 같은 화면을 그린다 */
-export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, chips, input, onInput, onSend, onChip, onAction, onRetry, onClose }: ChatPanelViewProps) {
+export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, chips, input, sending = false, onInput, onSend, onChip, onAction, onRetry, onClose }: ChatPanelViewProps) {
   const end = useRef<HTMLDivElement>(null)
-  useEffect(() => { end.current?.scrollIntoView?.({ block: 'end' }) }, [messages])
+  useEffect(() => { end.current?.scrollIntoView?.({ block: 'end' }) }, [messages, sending])
 
   return (
     <Sheet>
@@ -142,16 +146,23 @@ export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, ch
       )}
       <div className="msgs" style={{ overflowY: 'auto' }} aria-live="polite">
         {messages.map((message, index) => <Message key={index} message={message} onAction={onAction} onRetry={onRetry} />)}
+        {sending && <div className="air" role="status">
+          <Mascot face={3} size={30} />
+          <div className="aib chat-thinking">
+            <span>답변을 준비하고 있어요</span>
+            <span className="chat-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+          </div>
+        </div>}
         <div ref={end} />
       </div>
       <div className="qcs">
-        {chips.map(chip => <a key={chip} className="qc" role="button" tabIndex={0} onClick={() => onChip?.(chip)} onKeyDown={activate}>{chip}</a>)}
+        {chips.map(chip => <a key={chip} className="qc" role="button" tabIndex={sending ? -1 : 0} aria-disabled={sending} onClick={() => { if (!sending) onChip?.(chip) }} onKeyDown={activate}>{chip}</a>)}
       </div>
       <div className="inp">
         <input aria-label="질문 입력" placeholder="궁금한 걸 물어보세요" value={input} className={input ? 'typed' : ''}
           style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: 'transparent', font: 'inherit', color: 'inherit' }}
           onChange={event => onInput?.(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) onSend?.() }} />
-        <b role="button" tabIndex={0} aria-label="보내기" onClick={onSend} onKeyDown={activate}><Icon name="send" size={18} /></b>
+        <b role="button" tabIndex={sending ? -1 : 0} aria-label="보내기" aria-disabled={sending} onClick={() => { if (!sending) onSend?.() }} onKeyDown={activate}><Icon name="send" size={18} /></b>
       </div>
     </Sheet>
   )

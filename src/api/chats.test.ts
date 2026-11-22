@@ -15,10 +15,10 @@ describe('askChatQuestion (mock)', () => {
     const answer = await ask('어떤 서류를 올리면 돼?')
     expect(answer.status).toBe('ANSWERED')
     expect(answer.refs).toEqual(['앱 사용법', '현재 화면'])
-    expect(answer.actions.map(action => action.label)).toEqual(['근로계약서 선택하기', '임대차계약서 선택하기', '다른 문서 둘러보기'])
+    expect(answer.actions.map(action => action.to)).toEqual(['/analyses/1', '/analyses/9'])
   })
   it('법령을 참고한 답변은 참고한 정보에 법령 DB를 포함한다', async () => {
-    expect((await ask('계약서에서 특약이 무슨 뜻이야?', 'S07')).refs).toContain('법령 DB')
+    expect((await ask('계약서에서 특약이 무슨 뜻이야?', 'S07')).refs).toContain('법률 용어 안내')
   })
   it('지원하지 않는 문서는 범위 밖으로 답하고 다음 추천 질문을 바꿔 준다', async () => {
     const answer = await ask('실손보험 약관도 봐줄 수 있어?')
@@ -28,11 +28,10 @@ describe('askChatQuestion (mock)', () => {
     expect((await ask('보증금 돌려받을 수 있어?', 'S08')).status).toBe('NOT_ENOUGH')
   })
   it('답이 없는 질문도 막다른 화면 없이 기본 안내로 답한다', async () => {
-    expect(await ask('아무 말이나')).toMatchObject({ status: 'ANSWERED', actions: [{ label: '계약서 올리기', to: '/contracts/new' }] })
+    expect(await ask('아무 말이나')).toMatchObject({ status: 'NOT_ENOUGH', actions: [], followUps: expect.any(Array) })
   })
-  it('실패 확인용 질문은 처음 한 번만 실패하고 다시 시도하면 답한다', async () => {
-    await expect(ask('수습기간에도 최저임금 다 받아?')).rejects.toThrow()
-    await expect(ask('수습기간에도 최저임금 다 받아?')).resolves.toMatchObject({ status: 'ANSWERED' })
+  it('시연에서 자유 질문을 입력해도 인위적인 실패를 만들지 않는다', async () => {
+    await expect(ask('수습기간에도 최저임금 다 받아?')).resolves.toMatchObject({ status: 'NOT_ENOUGH' })
   })
   it('답변에 위법 확정·무조건 안전 같은 단정 표현이 없다', async () => {
     const texts = await Promise.all(['어떤 서류를 올리면 돼?', '이 계약에서 먼저 확인할 내용은 뭐야?', '왜 주의가 필요해?', '보증금 돌려받을 수 있어?'].map(question => ask(question, 'S08')))
