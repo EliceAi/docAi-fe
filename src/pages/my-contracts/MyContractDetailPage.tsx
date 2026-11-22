@@ -39,6 +39,7 @@ export function MyContractDetailPage() {
 }
 
 export function MyContractDetailView({ contract, demo = false }: { contract: ContractDetail; demo?: boolean }) {
+  const TermsContainer = demo ? 'details' : 'div'
   return (
     <Screen header={<Header title="계약서 상세" back="/contracts" chatFrom="S15" contractId={contract.contractId} />} footer={<TabBar active="내 계약서" />}>
       <div className="infob">
@@ -58,8 +59,9 @@ export function MyContractDetailView({ contract, demo = false }: { contract: Con
         </div>
       </div>
       {contract.keyTerms.length > 0 && (
-        <div className="card">
-          <div className="cg">
+        <TermsContainer className="card">
+          {demo && <summary className="h2" style={{ cursor: 'pointer' }}>주요 조건 {contract.keyTerms.length}개</summary>}
+          <div className="cg" style={demo ? { gridTemplateColumns: '1fr' } : undefined}>
             {contract.keyTerms.map(term => (
               <div key={term.label} className={`cv${term.state ? ` ${term.state}` : ''}`}>
                 <small>{term.label}</small><b>{term.value}</b>
@@ -69,7 +71,7 @@ export function MyContractDetailView({ contract, demo = false }: { contract: Con
               </div>
             ))}
           </div>
-        </div>
+        </TermsContainer>
       )}
       <div className="card">
         <div className="h2">연결된 일정 {contract.schedules.length}</div>

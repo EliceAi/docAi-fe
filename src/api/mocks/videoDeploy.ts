@@ -17,9 +17,13 @@ export const mockVideoCandidateSet: ScheduleCandidateSet = {
   ...toScheduleCandidateSet(VIDEO_ANALYSIS_ID, videoScheduleCandidatesResponse as BackendCandidateSet),
   contractId: VIDEO_CONTRACT_ID,
 }
+const leaseCandidates = toScheduleCandidateSet(VIDEO_LEASE_ANALYSIS_ID, videoLeaseCandidatesResponse as BackendCandidateSet)
 export const mockVideoLeaseCandidateSet: ScheduleCandidateSet = {
-  ...toScheduleCandidateSet(VIDEO_LEASE_ANALYSIS_ID, videoLeaseCandidatesResponse as BackendCandidateSet),
+  ...leaseCandidates,
   contractId: VIDEO_LEASE_CONTRACT_ID,
+  // 제공 데이터의 MOVE_IN은 기간의 양 끝이다. 같은 날짜의 대안으로 취급하지 않는다.
+  candidates: leaseCandidates.candidates
+    .map(candidate => ({ ...candidate, conflictGroup: candidate.conflictGroup === 'MOVE_IN' ? null : candidate.conflictGroup })),
 }
 
 // 보관된 상태의 일정. 번호는 와이어프레임 예시(1~10)와 겹치지 않게 11부터 쓴다

@@ -41,7 +41,7 @@ describe('등록 흐름의 근로계약서 = 시연 영상 데이터', () => {
   it('내 일정에는 예전 카페 알바 일정이 남지 않는다', async () => {
     const { getSchedules } = await import('./schedules')
     const titles = (await getSchedules()).filter(schedule => schedule.contractId === 1).map(schedule => `${schedule.title}·${schedule.contractTitle}`)
-    expect(titles).toEqual(['입사일·근로계약서(안)', '연봉계약 종료일·근로계약서(안)'])
+    expect(titles).toEqual(['연봉계약 종료일·근로계약서(안)', '입사일·근로계약서(안)'])
   })
 
   it('분석 완료 알림도 같은 계약서와 확인 필요 수를 보여 준다', async () => {

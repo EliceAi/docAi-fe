@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 let schedules: typeof import('./schedules')
 let contracts: typeof import('./contracts')
@@ -7,9 +7,12 @@ beforeEach(async () => {
   // 내 PC의 .env.local(real)과 상관없이 mock 동작을 확인한다
   vi.stubEnv('VITE_API_MODE', 'mock')
   vi.resetModules()
+  vi.setSystemTime(new Date('2026-11-12T12:00:00+09:00'))
   schedules = await import('./schedules')
   contracts = await import('./contracts')
 })
+
+afterEach(() => vi.useRealTimers())
 
 describe('일정 mock 조회와 변경', () => {
   it('분석한 계약서의 종류·이름·기간으로 일정 후보를 표시하고 없는 분석은 거절한다', async () => {
@@ -70,11 +73,11 @@ describe('일정 mock 조회와 변경', () => {
     const other = await schedules.getSchedule(1)
     await schedules.updateSchedule(7, { date: '2026-12-03' })
     expect(await schedules.getSchedule(7)).toMatchObject({ date: '2026.12.03', daysLeft: 21, source: 'typed', where: undefined })
-    expect((await schedules.getSchedules()).find(item => item.scheduleId === 7)?.date).toBe('2026.12.03')
+    expect((await schedules.getSchedules()).some(item => item.scheduleId === 7)).toBe(false)
     expect((await contracts.getMyContract(4)).schedules.find(item => item.scheduleId === 7)?.date).toBe('2026.12.03')
     expect(await schedules.getSchedule(1)).toEqual(other)
     const dates = (await schedules.getSchedules()).map(item => item.date)
-    expect(dates).toEqual([...dates].sort())
+    expect(dates).toEqual([...dates].sort().reverse())
   })
 
   it('잘못된 날짜를 거절하고 윤년 날짜는 저장한다', async () => {

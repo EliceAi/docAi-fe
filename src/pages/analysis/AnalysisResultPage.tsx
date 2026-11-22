@@ -32,14 +32,14 @@ export function AnalysisResultPage() {
     return <Screen header={<Header title="분석 결과" back="/" chatFrom="S08" />}><div className="note" role="status">분석 결과를 불러오는 중이에요.</div></Screen>
   }
 
-  return <AnalysisResultView key={analysisId} analysis={data} />
+  return <AnalysisResultView key={analysisId} analysis={data} compact />
 }
 
-export function AnalysisResultView({ analysis, forceSimilarPrompt = false }: { analysis: AnalysisResult; forceSimilarPrompt?: boolean }) {
-  return <AnalysisResultContent key={analysis.analysisId} initialAnalysis={analysis} forceSimilarPrompt={forceSimilarPrompt} />
+export function AnalysisResultView({ analysis, forceSimilarPrompt = false, compact = false }: { analysis: AnalysisResult; forceSimilarPrompt?: boolean; compact?: boolean }) {
+  return <AnalysisResultContent key={analysis.analysisId} initialAnalysis={analysis} forceSimilarPrompt={forceSimilarPrompt} compact={compact} />
 }
 
-function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initialAnalysis: AnalysisResult; forceSimilarPrompt: boolean }) {
+function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt, compact }: { initialAnalysis: AnalysisResult; forceSimilarPrompt: boolean; compact: boolean }) {
   const navigate = useNavigate()
   const [analysis, setAnalysis] = useState(initialAnalysis)
   const [copyMessage, setCopyMessage] = useState('')
@@ -150,6 +150,13 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
     }
   }
 
+  const TermsContainer = compact ? 'details' : 'div'
+  const counts = !isPartial && !isGeneral && analysis.summaryAvailable !== false && <div className="cnt">
+        <Tag color="red" icon="warn">확인 필요 {analysis.checkCount}</Tag>
+        {isLease ? <Tag color="blu">기한 {analysis.deadline ? 1 : 0}</Tag> : <Tag color="amb">빠진 항목 {analysis.missingItems.length}</Tag>}
+        <Tag>전체 조항 {analysis.clauseCount ?? analysis.clauses.length}</Tag>
+      </div>
+
   const content = (
     <Screen header={<Header title="분석 결과" back="/" chatFrom="S08" contractId={analysis.contractId} />}
             footer={<Footer><Button to={`/schedules/new?analysisId=${analysis.analysisId}`}>일정 확인하고 저장</Button></Footer>}>
@@ -169,9 +176,10 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
           <Button kind="l" onClick={openManualInput}>휴일 직접 입력</Button>
         </div>
       </>}
-      <div className="card">
-        <div className="h2">주요 조건</div>
-        <div className="cg">
+      {compact && counts}
+      <TermsContainer className="card">
+        {compact ? <summary className="h2" style={{ cursor: 'pointer' }}>주요 조건 {analysis.keyTerms.length}개 · 펼쳐 보기</summary> : <div className="h2">주요 조건</div>}
+        <div className="cg" style={compact ? { gridTemplateColumns: '1fr' } : undefined}>
           {analysis.keyTerms.map(term => (
             <div key={term.label} className={`cv${term.state ? ` ${term.state}` : ''}`}>
               <small>{term.label}</small><b>{term.value ?? '확인 필요'}</b>
@@ -182,12 +190,8 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt }: { initia
             </div>
           ))}
         </div>
-      </div>
-      {!isPartial && !isGeneral && analysis.summaryAvailable !== false && <div className="cnt">
-        <Tag color="red" icon="warn">확인 필요 {analysis.checkCount}</Tag>
-        {isLease ? <Tag color="blu">기한 {analysis.deadline ? 1 : 0}</Tag> : <Tag color="amb">빠진 항목 {analysis.missingItems.length}</Tag>}
-        <Tag>전체 조항 {analysis.clauseCount ?? analysis.clauses.length}</Tag>
-      </div>}
+      </TermsContainer>
+      {!compact && counts}
       {!isPartial && !isLease && !isGeneral && <div className="h2" style={{ margin: '6px 0 0' }}>우선 확인할 조항</div>}
       {analysis.findings.map(finding => <FindingCard key={finding.title} finding={finding} analysisId={analysis.analysisId} />)}
       {isLease && analysis.deadline && <div className="card">

@@ -4,6 +4,7 @@ import { createComparison, getComparisonDocuments, previewComparison, type Compa
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Footer, Header, Icon, Layered, Say, Screen } from '../../common/components'
 import './comparison-prepare.css'
+import { shouldMock } from '../../api/mock-mode'
 
 // S11 비교 준비 · #21 구자건
 export function ComparisonPreparePage() {
@@ -21,13 +22,14 @@ export function ComparisonPreparePage() {
       {error && <><Button kind="l" onClick={() => setRetry(value => value + 1)}>다시 시도</Button><Button to="/contracts" kind="l">다른 문서 고르기</Button></>}
     </Screen>
   </div>
-  return <ComparisonPrepareView key={`${previous}:${current}`} documents={data} analysisId={analysisId} />
+  return <ComparisonPrepareView key={`${previous}:${current}`} documents={data} analysisId={analysisId} demo={shouldMock('getComparisonDocuments')} />
 }
 
-export function ComparisonPrepareView({ documents: initialDocuments, initialPreview = null, analysisId = 2 }: {
+export function ComparisonPrepareView({ documents: initialDocuments, initialPreview = null, analysisId = 2, demo = false }: {
   documents: [ComparisonDocument, ComparisonDocument]
   initialPreview?: ComparisonPreview | null
   analysisId?: number
+  demo?: boolean
 }) {
   const navigate = useNavigate()
   const [documents, setDocuments] = useState(initialDocuments)
@@ -90,9 +92,9 @@ export function ComparisonPrepareView({ documents: initialDocuments, initialPrev
     <Button to={cancelTo} kind="l">취소</Button><Button kind={saving ? 'off' : 'p'} onClick={() => void compare()}>{saving ? '확인 중이에요' : '비교하기'}</Button>
   </Footer>}>
     <Say face={5} size={44}>두 계약서를 비교할게요. <b>이전본과 수정본</b>이 맞는지 확인해 주세요.</Say>
-    <VersionCard document={documents[0]} label="이전본" />
+    <VersionCard document={documents[0]} label="이전본" demo={demo} />
     <a className="chip" role="button" tabIndex={0} style={{ alignSelf: 'center' }} onClick={swap} aria-disabled={saving}><Icon name="swap" size={16} /> 순서 바꾸기</a>
-    <VersionCard document={documents[1]} label="수정본" />
+    <VersionCard document={documents[1]} label="수정본" demo={demo} />
     <div className="note"><Icon name="lock" size={14} /> 두 문서 모두 가린 이미지로 비교해요. 가린 곳은 비교하지 않아요.</div>
     {!preview && error && <div className="warnb" role="alert">{error}</div>}
   </Screen>
@@ -105,7 +107,7 @@ export function ComparisonPrepareView({ documents: initialDocuments, initialPrev
           buttons={preview.comparability === 'NONE' ? <>
             <Button to={cancelTo} kind="l">취소</Button><Button to="/contracts">다른 문서 고르기</Button>
           </> : <>
-            <Button kind={saving ? 'off' : 'l'} onClick={() => { if (!busy.current) navigate('/contracts/new/capture', { state: { captureMode: 'select', documentTypeCode: documents[1].documentTypeCode } }) }}>수정본 다시 올리기</Button>
+            {demo ? <Button to="/contracts/new" kind="l">다른 예시 보기</Button> : <Button kind={saving ? 'off' : 'l'} onClick={() => { if (!busy.current) navigate('/contracts/new/capture', { state: { captureMode: 'select', documentTypeCode: documents[1].documentTypeCode } }) }}>수정본 다시 올리기</Button>}
             <Button kind={saving ? 'off' : 'p'} onClick={() => void compare(true)}>{saving ? '비교 중이에요' : '이대로 비교'}</Button>
           </>} />
       </div>,
@@ -113,10 +115,10 @@ export function ComparisonPrepareView({ documents: initialDocuments, initialPrev
   </div>
 }
 
-function VersionCard({ document, label }: { document: ComparisonDocument; label: string }) {
+function VersionCard({ document, label, demo = false }: { document: ComparisonDocument; label: string; demo?: boolean }) {
   return <div className="vcard"><span className={`vbadge t-${label === '이전본' ? 'gry' : 'blu'}`}>v{document.version ?? (label === '이전본' ? 1 : 2)}</span>
     <span style={{ flex: 1 }}><span className="mut">{label}</span><br /><b>{document.title}</b><br />
-      <span className="mut">{document.uploaded ? '오늘 분석 · 방금 올린 계약서' : `${document.analyzedAt} 분석 · 내 계약서`} · {document.pageCount === null ? '쪽 수 확인 필요' : `${document.pageCount}쪽`}</span>
+      <span className="mut">{demo ? '준비된 비교 예시' : document.uploaded ? '오늘 분석 · 방금 올린 계약서' : `${document.analyzedAt} 분석 · 내 계약서`} · {document.pageCount === null ? '쪽 수 확인 필요' : `${document.pageCount}쪽`}</span>
     </span>
   </div>
 }

@@ -18,7 +18,9 @@ export function PcIntro() {
         {WIREFRAME_URL && <a className="pc-btn" href={WIREFRAME_URL} target="_blank" rel="noreferrer">화면 설계안 보기</a>}
       </div>
       <div className="pc-qr">
-        <div className="pc-qr-box">QR</div>
+        <a className="pc-qr-box" href="https://elice-ai-docs.vercel.app/app" aria-label="휴대폰용 앱 주소 열기">
+          <img src="/app-qr.svg" alt="문서AI 앱을 휴대폰에서 여는 QR 코드" width="112" height="112" />
+        </a>
         <span><b>휴대폰으로 열기</b><br />QR을 찍으면 휴대폰에서<br />전체 화면 앱으로 열려요</span>
       </div>
       {IS_DEMO_MODE && <p className="pc-demo">시연 모드 · 분석 결과는 예시 데이터예요</p>}
