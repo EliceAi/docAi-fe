@@ -1,0 +1,3 @@
+.analysis-progress .pst.doing .pd{animation:analysis-progress-spin 1s linear infinite}
+@keyframes analysis-progress-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.analysis-progress .pst.doing .pd{animation:none}}

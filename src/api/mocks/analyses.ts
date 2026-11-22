@@ -2,16 +2,29 @@ import type { Analysis, AnalysisProgress, AnalysisResult, AnalysisStatus, Clause
 import { mockDocumentTypes } from './documentTypes'
 import { mockContractDetails } from './contracts'
 import { toAnalysisResult, toClauseDetail, type BackendAnalysis, type BackendClause } from '../backendResponses'
-import { employmentAnalysisResponse, employmentClauseResponses } from './real/employmentAnalysis'
+import { videoAnalysisResponse, videoClauseResponses } from './real/videoEmployment'
+import { videoLeaseAnalysisResponse, videoLeaseClauseResponses } from './real/videoLease'
 
-// 배포(mock)의 홈 "예시 계약서로 먼저 해보기"는 실제 AI 응답(분석 4037)을 예시 번호(900001)로 보여 준다.
-// 예시는 보관된 계약서가 아니라 계약서 번호가 0이다(실제 예시 분석과 같다). 등록 흐름의 분석 1번은 계약서·일정·알림·챗봇과
-// 맞도록 와이어프레임 예시(mockNormalAnalysis, 카페 알바)를 쓴다.
+// 배포(mock)의 근로계약서 예시는 시연 영상과 같은 실제 응답(분석 9470, 가상 계약서)이다.
+// 등록 흐름은 분석 1번·계약서 1번 자리에, 홈 "예시 계약서로 먼저 해보기"는 예시 번호(900001, 계약서 0)로 같은 응답을 보여 준다.
+// 보드(S08_분석결과_정상 등)는 와이어프레임 예시인 mockNormalAnalysis를 그대로 쓴다.
+export const VIDEO_ANALYSIS_ID = 1
+export const VIDEO_CONTRACT_ID = 1
 export const DEMO_EMPLOYMENT_SAMPLE_ID = 900001
-const demoEmploymentResult = toAnalysisResult(employmentAnalysisResponse as BackendAnalysis)
-export const mockDemoEmploymentAnalysis: AnalysisResult = { ...demoEmploymentResult, analysisId: DEMO_EMPLOYMENT_SAMPLE_ID, contractId: 0, isSample: true }
-export const mockDemoEmploymentClauseDetails: ClauseDetail[] = (employmentClauseResponses as BackendClause[]).map(clause => toClauseDetail(clause, {
-  analysisId: DEMO_EMPLOYMENT_SAMPLE_ID, contractId: 0, documentTitle: demoEmploymentResult.documentTitle, analyzedAt: demoEmploymentResult.analyzedAt,
+const videoResult = toAnalysisResult(videoAnalysisResponse as BackendAnalysis)
+const videoClauseDetails = (analysisId: number, contractId: number): ClauseDetail[] =>
+  (videoClauseResponses as BackendClause[]).map(clause => toClauseDetail(clause, { analysisId, contractId, documentTitle: videoResult.documentTitle, analyzedAt: videoResult.analyzedAt }))
+
+export const mockVideoEmploymentAnalysis: AnalysisResult = { ...videoResult, analysisId: VIDEO_ANALYSIS_ID, contractId: VIDEO_CONTRACT_ID, isSample: true }
+export const mockVideoEmploymentClauseDetails = videoClauseDetails(VIDEO_ANALYSIS_ID, VIDEO_CONTRACT_ID)
+export const mockDemoEmploymentAnalysis: AnalysisResult = { ...videoResult, analysisId: DEMO_EMPLOYMENT_SAMPLE_ID, contractId: 0, isSample: true }
+export const mockDemoEmploymentClauseDetails = videoClauseDetails(DEMO_EMPLOYMENT_SAMPLE_ID, 0)
+export const VIDEO_LEASE_ANALYSIS_ID = 9
+export const VIDEO_LEASE_CONTRACT_ID = 9
+const videoLeaseResult = toAnalysisResult(videoLeaseAnalysisResponse as BackendAnalysis)
+export const mockVideoLeaseAnalysis: AnalysisResult = { ...videoLeaseResult, analysisId: VIDEO_LEASE_ANALYSIS_ID, contractId: VIDEO_LEASE_CONTRACT_ID, isSample: true }
+export const mockVideoLeaseClauseDetails = (videoLeaseClauseResponses as BackendClause[]).map(clause => toClauseDetail(clause, {
+  analysisId: VIDEO_LEASE_ANALYSIS_ID, contractId: VIDEO_LEASE_CONTRACT_ID, documentTitle: videoLeaseResult.documentTitle, analyzedAt: videoLeaseResult.analyzedAt,
 }))
 
 export const mockRequestedAnalysis: { analysisId: number; status: AnalysisStatus } = { analysisId: 1, status: 'IN_PROGRESS' }

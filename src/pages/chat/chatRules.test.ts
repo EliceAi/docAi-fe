@@ -13,6 +13,12 @@ describe('screenIdsFromPath', () => {
     expect(screenIdsFromPath('/comparisons/new')).toEqual({})
     expect(screenIdsFromPath('/contracts/new/mask')).toEqual({})
   })
+  it('일정 등록 화면의 분석·비교와 계약서 상세의 연결 문서를 전달한다', () => {
+    expect(screenIdsFromPath('/schedules/new?analysisId=1')).toEqual({ analysisId: 1 })
+    expect(screenIdsFromPath('/schedules/new?comparisonId=121')).toEqual({ comparisonId: 121 })
+    expect(screenIdsFromPath('/contracts/2')).toEqual({ contractId: 2 })
+    expect(screenIdsFromPath('/schedules/new?analysisId=NaN')).toEqual({})
+  })
 })
 
 describe('needsLeaveConfirm', () => {

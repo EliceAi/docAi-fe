@@ -21,12 +21,12 @@ describe('P01 알림과 일정 연결', () => {
   it('날짜를 수정하면 알림의 D-day도 같은 상태로 갱신된다', async () => {
     await schedules.updateSchedule(7, { date: '2026-12-05' })
     expect((await notices.getNotifications()).find(notice => notice.kind === 'SCHEDULE')?.title).toBe('D-23 · 입주·전입신고가 다가와요')
-    expect(await notices.getUnreadNotificationCount()).toEqual({ count: 2 })
+    expect(await notices.getUnreadNotificationCount()).toEqual({ count: 3 })
   })
 
   it('삭제한 일정의 알림과 개수를 제거해 없는 상세로 보내지 않는다', async () => {
     await schedules.deleteSchedule(7)
-    expect((await notices.getNotifications()).map(notice => notice.kind)).toEqual(['ANALYSIS_DONE'])
-    expect(await notices.getUnreadNotificationCount()).toEqual({ count: 1 })
+    expect((await notices.getNotifications()).map(notice => notice.kind)).toEqual(['ANALYSIS_DONE', 'ANALYSIS_DONE'])
+    expect(await notices.getUnreadNotificationCount()).toEqual({ count: 2 })
   })
 })
