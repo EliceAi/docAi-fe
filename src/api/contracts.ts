@@ -187,17 +187,22 @@ export function archiveContract(contractId: number, schedules: ArchiveSchedule[]
   return request(`/api/contracts/${contractId}/archive`, { ...jsonBody('POST', { schedules }), headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey } })
 }
 
+/** 계약서 목록과 일정 목록이 같은 최신 버전을 사용한다. */
+export function getMockCurrentContracts(): ContractSummary[] {
+  restoreContracts()
+  const contracts = new Map<number, ContractSummary>(mockDeployMyContracts.map(contract => [contract.contractId, contract]))
+  for (const contract of archivedContracts.values()) {
+    if (!snapshotIds.has(contract.contractId)) contracts.set(contract.contractId, contract)
+  }
+  for (const contract of contracts.values()) if (contract.previousVersion) contracts.delete(contract.previousVersion.contractId)
+  return [...contracts.values()]
+}
+
 /** GET /api/contracts: 내 계약서 목록 */
 export function getMyContracts(): Promise<ContractSummary[]> {
   if (shouldMock('getMyContracts')) {
-    restoreContracts()
     const schedules = getMockSchedules()
-    const contracts = new Map<number, ContractSummary>(mockDeployMyContracts.map(contract => [contract.contractId, contract]))
-    for (const contract of archivedContracts.values()) {
-      if (!snapshotIds.has(contract.contractId)) contracts.set(contract.contractId, contract)
-    }
-    for (const contract of archivedContracts.values()) if (contract.previousVersion) contracts.delete(contract.previousVersion.contractId)
-    return mockResponse([...contracts.values()].map(contract => ({
+    return mockResponse(getMockCurrentContracts().map(contract => ({
       ...contract,
       scheduleCount: schedules.filter(schedule => schedule.contractId === contract.contractId).length,
     })))

@@ -2,7 +2,7 @@ import { mockNotifications } from './mocks/notifications'
 import { mockResponse, shouldMock } from './mock-mode'
 import { request } from './request'
 import { toNotifications } from './backendResponses'
-import { getMockSchedules } from './schedules'
+import { getMockCurrentSchedules } from './schedules'
 
 // 응답 상세는 API 명세에 아직 없다. 와이어프레임 P01 기준으로 정했고, 실제 연결 때 test-api로 맞춘다.
 
@@ -20,14 +20,13 @@ export type Notification = {
 }
 
 function getMockNotifications(): Notification[] {
-  const schedules = getMockSchedules()
+  const schedules = getMockCurrentSchedules().filter(schedule => schedule.daysLeft >= 0)
   return mockNotifications.flatMap(notice => {
     if (notice.kind !== 'SCHEDULE') return [notice]
-    const scheduleId = Number(notice.to.match(/^\/schedules\/(\d+)$/)?.[1])
-    const schedule = schedules.find(schedule => schedule.scheduleId === scheduleId)
+    const schedule = schedules[0]
     if (!schedule) return []
     const remaining = schedule.daysLeft === 0 ? 'D-day' : schedule.daysLeft > 0 ? `D-${schedule.daysLeft}` : `D+${Math.abs(schedule.daysLeft)}`
-    return [{ ...notice, title: `${remaining} · ${schedule.title}가 다가와요`, text: schedule.contractTitle }]
+    return [{ ...notice, to: `/schedules/${schedule.scheduleId}`, title: `${remaining} · ${schedule.title}가 다가와요`, text: schedule.contractTitle }]
   })
 }
 

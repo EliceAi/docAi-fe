@@ -4,6 +4,7 @@ import { discardComparison, getComparison, submitComparisonInputs, type Change, 
 import { useApiData } from '../../api/useApiData'
 import { Button, Dialog, Footer, Header, Icon, Layered, Screen, Sheet, Tag } from '../../common/components'
 import './comparison-result.css'
+import { shouldMock } from '../../api/mock-mode'
 
 type Panel = 'manual' | 'discard' | null
 
@@ -29,14 +30,14 @@ export function ComparisonResultPage() {
       <div className="note" role="status">비교 결과를 불러오는 중이에요.</div>
     </Screen>
   </div>
-  return <ComparisonResultView key={comparisonId} comparison={data} />
+  return <ComparisonResultView key={comparisonId} comparison={data} demo={shouldMock('getComparison')} />
 }
 
-export function ComparisonResultView({ comparison, initialPanel = null }: { comparison: Comparison; initialPanel?: Panel }) {
-  return <ComparisonResultContent key={comparison.comparisonId} initialComparison={comparison} initialPanel={initialPanel} />
+export function ComparisonResultView({ comparison, initialPanel = null, demo = false }: { comparison: Comparison; initialPanel?: Panel; demo?: boolean }) {
+  return <ComparisonResultContent key={comparison.comparisonId} initialComparison={comparison} initialPanel={initialPanel} demo={demo} />
 }
 
-function ComparisonResultContent({ initialComparison, initialPanel }: { initialComparison: Comparison; initialPanel: Panel }) {
+function ComparisonResultContent({ initialComparison, initialPanel, demo }: { initialComparison: Comparison; initialPanel: Panel; demo: boolean }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [comparison, setComparison] = useState(initialComparison)
@@ -149,9 +150,9 @@ function ComparisonResultContent({ initialComparison, initialPanel }: { initialC
       <div className="h2"><Icon name="warn" size={16} /> 비교하지 못한 곳 {comparison.unreadLabels.length}</div>
       <div className="mut"><b style={{ color: 'var(--ink)' }}>{unread.location} ({unread.title})</b><br />글자가 흐려서 읽지 못했어요. 삭제된 조항으로 보지 않아요. 확정하기 전에 확인해 주세요.</div>
       <div className="row" style={{ marginTop: 10 }}>
-        <Button kind="l" onClick={() => navigate('/contracts/new/capture', { state: { captureMode: 'camera', documentTypeCode: comparison.documentTypeCode,
+        {!demo && <Button kind="l" onClick={() => navigate('/contracts/new/capture', { state: { captureMode: 'camera', documentTypeCode: comparison.documentTypeCode,
           comparisonId: comparison.comparisonId, contractId: comparison.currentContractId, pageNo: unread.pageNo,
-          analysisId: incoming?.analysisId, returnTo: `/comparisons/${comparison.comparisonId}` } })}>그 쪽 다시 찍기</Button>
+          analysisId: incoming?.analysisId, returnTo: `/comparisons/${comparison.comparisonId}` } })}>그 쪽 다시 찍기</Button>}
         <Button kind="l" onClick={() => openManualInput(unread)}>직접 입력</Button>
       </div>
       <div className="mut" style={{ marginTop: 8 }}>그대로 확정하면 이 칸은 '비교 못 함'으로 남아요. 직접 가린 곳(이름·연락처 등)은 원래 비교하지 않아요.</div>
@@ -176,12 +177,12 @@ function ComparisonResultContent({ initialComparison, initialPanel }: { initialC
                   onChange={event => { setInput(event.target.value); setError('') }} />
               </div></div>
             <div className="note" id="comparison-manual-note"><Icon name="info" size={14} /> 입력한 내용은 '직접 입력'으로 표시해요. AI가 원문을 읽은 것처럼 다루지 않아요.</div>
-            <div className="note"><Icon name="camera" size={14} /> 글자를 알아보기 어렵다면 그 쪽을 다시 찍는 게 더 정확해요.</div>
+            <div className="note"><Icon name="camera" size={14} /> {demo ? '시연에서는 재촬영 대신 준비된 예시의 값을 직접 입력해 볼 수 있어요.' : '글자를 알아보기 어렵다면 그 쪽을 다시 찍는 게 더 정확해요.'}</div>
             {error && <div className="warnb" role="alert">{error}</div>}
             <div className="row"><Button kind={saving ? 'off' : 'l'} onClick={closePanel}>취소</Button>
               <Button kind={saving ? 'off' : 'p'} onClick={() => void perform('input')}>{saving ? '반영 중이에요' : '비교에 넣기'}</Button></div>
           </form>
-        </Sheet> : <Dialog face={1} title="수정본으로 확정하지 않을까요?" text="기존 v1 계약서와 일정은 그대로 두고, 방금 올린 수정본은 보관하지 않아요."
+        </Sheet> : <Dialog face={1} title="수정본으로 확정하지 않을까요?" text={demo ? '현재 보관된 계약서와 일정은 그대로 유지해요. 이 비교 예시의 수정본을 확정하지 않아요.' : '기존 v1 계약서와 일정은 그대로 두고, 방금 올린 수정본은 보관하지 않아요.'}
           extra={error && <div className="warnb" role="alert">{error}</div>}
           buttons={<><Button kind={saving ? 'off' : 'l'} onClick={closePanel}>돌아가기</Button>
             <Button kind={saving ? 'off' : 'p'} onClick={() => void perform('discard')}>{saving ? '처리 중이에요' : '확정하지 않기'}</Button></>} />}
