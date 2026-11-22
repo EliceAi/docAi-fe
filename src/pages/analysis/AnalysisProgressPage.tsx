@@ -4,6 +4,7 @@ import { getAnalysisProgress, requestAnalysis, type AnalysisProgress } from '../
 import { useApiData } from '../../api/useApiData'
 import { Button, Header, Icon, Mascot, Screen } from '../../common/components'
 import { objectParticle } from '../contract-register/masking'
+import './AnalysisProgressPage.css'
 
 // S07 분석 중과 실패 · #13 김지희
 const POLL_INTERVAL_MS = 2500
@@ -69,7 +70,7 @@ function AnalyzingScreen({ progress }: { progress: AnalysisProgress }) {
         <b style={{ fontSize: 19 }}>{objectParticle(progress.documentTypeName)} 읽고 있어요</b>
         <span className="mut">보통 30초쯤 걸려요</span>
       </div>
-      <div className="card">
+      <div className="card analysis-progress" role="status" aria-label={`분석 중: ${STEP_LABELS[progress.completedSteps] ?? '분석 완료'}`}>
         {STEP_LABELS.map((label, index) => {
           const state = index < progress.completedSteps ? 'done' : index === progress.completedSteps ? 'doing' : 'todo'
           return <div key={label} className={`pst ${state}`}><span className="pd">{state === 'done' && <Icon name="check" size={16} />}</span>{label}</div>

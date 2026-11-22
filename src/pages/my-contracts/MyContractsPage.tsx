@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { getMyContracts, type ContractSummary } from '../../api/contracts'
 import { useApiData } from '../../api/useApiData'
 import { Button, Header, Icon, Mascot, Screen, TabBar, Tag } from '../../common/components'
+import { mockDocumentTypes } from '../../api/mocks/documentTypes'
 
 // S15 내 계약서 · #16 구자건 · 보드: S15_내계약서_목록 · S15_내계약서_빈상태
 export function MyContractsPage() {
@@ -69,7 +70,7 @@ export function MyContractsView({ contracts }: { contracts: ContractSummary[] })
             {contract.version > 1 && <Tag color="blu">v{contract.version}</Tag>}
             <br />
             <span className="mut">
-              {contract.documentTypeCode === 'EMPLOYMENT' ? '근로' : '임대차'} · {analysisDate(contract.savedAt)} 분석
+              {mockDocumentTypes.find(type => type.code === contract.documentTypeCode)?.name ?? '계약서'} · {analysisDate(contract.savedAt)} 분석
               {contract.previousVersion && ` · 이전 버전 v${contract.previousVersion.version} (${analysisDate(contract.previousVersion.savedAt)})`}
             </span>
             <span className="row" style={{ gap: 4, marginTop: 6, flexWrap: 'wrap' }}>

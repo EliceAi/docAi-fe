@@ -6,6 +6,7 @@ import { useApiData } from '../../api/useApiData'
 import { Header, Icon, Mascot, Say, Screen, TabBar } from '../../common/components'
 import type { DocumentTypeFocus } from '../contract-register/DocumentTypePage'
 import { SplashPage } from './SplashPage'
+import { shouldMock } from '../../api/mock-mode'
 
 // 홈 "내 상황에 맞는 문서 찾기" 칩. 누르면 문서 선택(S02)에서 그 탭(집/일)을 열고 그 묶음으로 내려간다
 const DOCUMENT_CHIP_LANES: { lane: DocumentTypeFocus['lane']; chips: { group: string; label: string }[] }[] = [
@@ -39,6 +40,7 @@ function HomeWithApiData() {
   const { data: upcoming } = useApiData(getUpcomingSchedules, [])
 
   async function startSample() {
+    if (shouldMock('getSampleAnalysis')) { navigate('/analyses/1/progress'); return }
     setSampleFailed(false)
     try {
       const sample = await getSampleAnalysis(SAMPLE_DOCUMENT_TYPE_CODE)
@@ -48,7 +50,7 @@ function HomeWithApiData() {
     }
   }
 
-  return <HomeScreen upcoming={upcoming ?? []} onStartSample={startSample} sampleFailed={sampleFailed} />
+  return <HomeScreen upcoming={upcoming ?? []} onStartSample={startSample} sampleFailed={sampleFailed} demo={shouldMock('createContract')} />
 }
 
 type HomeScreenProps = {
@@ -56,10 +58,11 @@ type HomeScreenProps = {
   upcoming: Schedule[]
   onStartSample?: () => void
   sampleFailed?: boolean
+  demo?: boolean
 }
 
 // 와이어프레임 homeScreen(firstUse): 보드에서도 같은 화면을 예시 데이터로 그린다
-export function HomeScreen({ upcoming, onStartSample, sampleFailed = false }: HomeScreenProps) {
+export function HomeScreen({ upcoming, onStartSample, sampleFailed = false, demo = false }: HomeScreenProps) {
   const isFirstUse = upcoming.length === 0
 
   return (
@@ -70,14 +73,14 @@ export function HomeScreen({ upcoming, onStartSample, sampleFailed = false }: Ho
       </Say>
       <div className="hero">
         <Link className="hbtn" to="/contracts/new">
-          <Icon name="camera" size={26} /><b>계약서 촬영</b><small>카메라로 바로 찍기</small>
+          <Icon name={demo ? 'doc' : 'camera'} size={26} /><b>{demo ? '예시 계약서 체험' : '계약서 촬영'}</b><small>{demo ? '근로·임대차 분석 보기' : '카메라로 바로 찍기'}</small>
         </Link>
-        <Link className="hbtn w" to="/contracts/new">
-          <Icon name="upload" size={26} /><b>파일·앨범 올리기</b><small>사진 여러 장</small>
+        <Link className="hbtn w" to={demo ? '/contracts' : '/contracts/new'}>
+          <Icon name={demo ? 'files' : 'upload'} size={26} /><b>{demo ? '보관된 예시 보기' : '파일·앨범 올리기'}</b><small>{demo ? '계약서·일정 확인' : '사진 여러 장'}</small>
         </Link>
       </div>
       <div className="note" style={{ justifyContent: 'center' }}>
-        <Icon name="lock" size={14} /> 개인정보는 내가 직접 가린 뒤에만 AI에 보내요
+        <Icon name="lock" size={14} /> {demo ? '시연 모드 · 새 계약서 업로드 없이 예시로 체험해요' : '개인정보는 내가 직접 가린 뒤에만 AI에 보내요'}
       </div>
       {isFirstUse ? <EmptyUpcoming /> : <UpcomingSchedules schedules={upcoming} />}
       <div className="card">

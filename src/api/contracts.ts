@@ -1,6 +1,7 @@
 import { mockGeneralAnalyses, mockLeaseAnalysis, mockNormalAnalysis } from './mocks/analyses'
 import { mockDocumentTypes } from './mocks/documentTypes'
-import { mockContractDetails, mockCreatedContract, mockMyContracts } from './mocks/contracts'
+import { mockCreatedContract } from './mocks/contracts'
+import { mockDeployContractDetails, mockDeployMyContracts } from './mocks/videoDeploy'
 import { mockResponse, shouldMock } from './mock-mode'
 import { jsonBody, request } from './request'
 import { ApiError } from './http'
@@ -78,11 +79,11 @@ function persistContracts() {
 /** mock 보관과 비교에서 같은 계약서·버전을 조회한다. 예시 원본은 변경하지 않는다. */
 export function getMockContract(contractId: number): ContractDetail {
   restoreContracts()
-  const stored = archivedContracts.get(contractId) ?? mockContractDetails.find(contract => contract.contractId === contractId)
+  const stored = archivedContracts.get(contractId) ?? mockDeployContractDetails.find(contract => contract.contractId === contractId)
   if (stored) return structuredClone(stored)
   // S11의 나머지 22종 수정본 예시는 원본 번호 + 1000을 사용한다.
   const baseId = contractId - 1000
-  if (contractId >= 1000 && (archivedContracts.has(baseId) || mockContractDetails.some(contract => contract.contractId === baseId) || mockGeneralAnalyses.some(analysis => analysis.contractId === baseId))) {
+  if (contractId >= 1000 && (archivedContracts.has(baseId) || mockDeployContractDetails.some(contract => contract.contractId === baseId) || mockGeneralAnalyses.some(analysis => analysis.contractId === baseId))) {
     const base = getMockContract(contractId - 1000)
     return { ...base, contractId, version: base.version + 1, previousVersion: { contractId: base.contractId, version: base.version, savedAt: base.savedAt }, schedules: [], scheduleIds: [], scheduleCount: 0 }
   }
@@ -191,7 +192,7 @@ export function getMyContracts(): Promise<ContractSummary[]> {
   if (shouldMock('getMyContracts')) {
     restoreContracts()
     const schedules = getMockSchedules()
-    const contracts = new Map<number, ContractSummary>(mockMyContracts.map(contract => [contract.contractId, contract]))
+    const contracts = new Map<number, ContractSummary>(mockDeployMyContracts.map(contract => [contract.contractId, contract]))
     for (const contract of archivedContracts.values()) {
       if (!snapshotIds.has(contract.contractId)) contracts.set(contract.contractId, contract)
     }

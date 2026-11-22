@@ -1,7 +1,49 @@
 import type { ChatAnswer, ChatMessage, ChatQuestion } from '../chats'
 import { mockResponse } from '../mock-mode'
+import { toChatMessage, type BackendChatMessage } from '../backendResponses'
+import { mockVideoEmploymentAnalysis, mockVideoEmploymentClauseDetails, VIDEO_ANALYSIS_ID, VIDEO_CONTRACT_ID } from './analyses'
+import { videoChatMessagesResponse } from './real/videoEmployment'
+import { answerDemoQuestion } from './demoChat'
+import { SUGGESTED_QUESTIONS } from '../chatSuggestions'
 
 type MockAnswer = Omit<ChatAnswer, 'conversationId'>
+
+// 시연 영상 계약서(분석 1번)에 대한 답. 영상 속 대화(대화 246)는 그대로 쓰고, 추천 질문은 이 계약서의 분석 결과 문장으로만 답한다.
+// 영상 서버의 분석 번호(9470)로 오는 근거 조항 버튼은 앱의 분석 1번으로 연다
+const videoConversationAnswers = new Map<string, MockAnswer>()
+const videoMessages = (videoChatMessagesResponse as { messages: BackendChatMessage[] }).messages
+videoMessages.forEach((message, index) => {
+  const reply = videoMessages[index + 1]
+  if (message.role !== 'USER' || reply?.role !== 'ASSISTANT') return
+  const converted = toChatMessage({ ...reply, actions: reply.actions?.map(action => ({ ...action, params: { ...action.params, ...(action.params.analysisId ? { analysisId: VIDEO_ANALYSIS_ID } : {}) } })) })
+  videoConversationAnswers.set(message.content.trim(), { status: converted.status ?? 'ANSWERED', answer: converted.text, refs: converted.refs ?? [], actions: converted.actions ?? [] })
+})
+
+function videoContractAnswer(question: ChatQuestion): MockAnswer | undefined {
+  const fromVideo = videoConversationAnswers.get(question.question.trim())
+  if (fromVideo) return fromVideo
+  const analysis = mockVideoEmploymentAnalysis
+  const clause = mockVideoEmploymentClauseDetails.find(detail => detail.clauseId === question.clauseId)
+  const fromScreen = (answer: string, refs = ['내 문서', '현재 화면']): MockAnswer => ({ status: 'ANSWERED', answer, refs, actions: [] })
+  switch (question.question) {
+    case '이 계약에서 먼저 확인할 내용은 뭐야?':
+      return { ...fromScreen(`확인이 필요한 조항이 ${analysis.findings.length}개예요.\n${analysis.findings.map((finding, index) => `${index + 1}. ${finding.title}`).join('\n')}`),
+        actions: [{ label: '첫 조항 자세히 보기', to: `/analyses/${VIDEO_ANALYSIS_ID}/clauses/${analysis.findings[0].clauseId}` }] }
+    case '중요한 조건을 쉽게 정리해 줘.':
+      return fromScreen(analysis.keyTerms.map(term => `**${term.label}** ${term.value ?? '확인 필요'}`).join('\n'), ['내 문서'])
+    case '아직 확인되지 않은 정보가 있어?':
+      return fromScreen(`${analysis.missingItems.length ? `빠진 항목: ${analysis.missingItems.map(item => item.title).join(', ')}` : '계약서에서 빠진 필수 항목은 없어요.'}\n서명 전에 상대방에게 확인해 보세요.\n${(analysis.questions ?? []).slice(0, 3).join('\n')}`, ['내 문서'])
+    case '이 조항을 쉬운 말로 설명해 줘.':
+      return clause && fromScreen(clause.easyExplanation)
+    case '이 조항이 나에게 어떤 영향을 줘?':
+      return clause && fromScreen(clause.checkReason || clause.easyExplanation)
+    case '상대방에게 무엇을 확인하면 돼?':
+      return clause && fromScreen(clause.question)
+  }
+  return undefined
+}
+
+const isVideoContract = (question: ChatQuestion) => question.analysisId === VIDEO_ANALYSIS_ID || question.contractId === VIDEO_CONTRACT_ID
 
 // 질문 문구가 같으면 와이어프레임 S10 보드의 답변을 그대로 돌려준다. 문구는 보드와 한 글자도 다르게 쓰지 않는다.
 // 보드의 예시는 근로(카페 알바)·임대차(역삼동 원룸) 계약서이고, 나머지 문서 종류는 연결 문서 없는 일반 답변으로 끝까지 동작한다.
@@ -83,19 +125,23 @@ export const mockChatAnswer: ChatAnswer = {
   actions: [{ label: '계약서 올리기', to: '/contracts/new' }],
 }
 
-/** 화면에서 실패를 직접 볼 수 있는 질문. 처음 한 번만 실패하고, 다시 시도하면 기본 답변이 나온다 */
+/** 실패 보드를 그릴 때만 쓰는 질문. 실제 시연 응답은 인위적으로 실패시키지 않는다. */
 export const mockFailingQuestion = '수습기간에도 최저임금 다 받아?'
-const alreadyFailed = new Set<string>()
 
 // mock 대화 기록: 대화 번호별로 주고받은 메시지를 기억해 "대화 기록 조회"로 돌려준다
 const mockConversations = new Map<number, ChatMessage[]>()
+let nextConversationId = Date.now()
 
-export function findMockChatAnswer(question: ChatQuestion): Promise<ChatAnswer> {
-  if (question.question === mockFailingQuestion && !alreadyFailed.has(question.question)) {
-    alreadyFailed.add(question.question)
-    return Promise.reject(new Error('답변을 받지 못했어요.'))
-  }
-  const answer: ChatAnswer = { ...(mockChatAnswersByQuestion[question.question] ?? mockChatAnswer), conversationId: question.conversationId ?? 1 }
+export async function findMockChatAnswer(question: ChatQuestion): Promise<ChatAnswer> {
+  const videoAnswer = isVideoContract(question) ? videoContractAnswer(question) : undefined
+  const suggested = SUGGESTED_QUESTIONS[question.screen ?? 'S01']?.includes(question.question.trim())
+  const generalQuestion = question.question === '계약서에서 특약이 무슨 뜻이야?' || question.question === '실손보험 약관도 봐줄 수 있어?'
+    || question.question === '보증금 돌려받을 수 있어?' && (!question.contractId && !question.analysisId || question.contractId === 2 || question.analysisId === 2)
+  const generalAnswer = !suggested && generalQuestion ? mockChatAnswersByQuestion[question.question] : undefined
+  const response = videoAnswer ?? generalAnswer ?? await answerDemoQuestion(question)
+  const answer: ChatAnswer = { ...response, conversationId: question.conversationId ?? nextConversationId++,
+    actions: response.actions.map(action => action.to.startsWith('/contracts/new')
+      ? { label: '예시 계약서 보기', to: '/contracts' } : action) }
   mockConversations.set(answer.conversationId, [...(mockConversations.get(answer.conversationId) ?? []),
     { role: 'me', text: question.question },
     { role: 'ai', text: answer.answer, refs: answer.refs, actions: answer.actions, status: answer.status, face: answer.face }])

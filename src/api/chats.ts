@@ -49,8 +49,12 @@ export type ChatMessage = {
 }
 
 /** POST /api/chats/messages */
-export function askChatQuestion(question: ChatQuestion): Promise<ChatAnswer> {
-  if (shouldMock('askChatQuestion')) return findMockChatAnswer(question)
+export async function askChatQuestion(question: ChatQuestion): Promise<ChatAnswer> {
+  if (shouldMock('askChatQuestion')) {
+    // 즉시 응답하는 시연에서도 답변 대기 상태를 확인할 수 있게 한다.
+    await new Promise(resolve => setTimeout(resolve, 1200))
+    return findMockChatAnswer(question)
+  }
   const { question: message, screen = 'S01', ...context } = question
   // 질문 응답은 대화 기록의 ASSISTANT 메시지와 같은 모양이지만 본문이 content가 아니라 answer로 온다
   return request<Omit<BackendChatMessage, 'role' | 'content' | 'createdAt'> & { conversationId: number; answer: string }>('/api/chats/messages', jsonBody('POST', { message, screen, ...context })).then(data => {
@@ -62,15 +66,15 @@ export function askChatQuestion(question: ChatQuestion): Promise<ChatAnswer> {
 // 명세: 대화 목록 API는 없다. 앱이 마지막 대화 번호를 기기에 저장해 두고 챗봇을 다시 열 때 쓴다
 const LAST_CONVERSATION_KEY = 'docai.chat.lastConversationId'
 
-export function loadLastConversationId(): number | undefined {
+export function loadLastConversationId(context?: string): number | undefined {
   try {
-    const value = Number(window.localStorage.getItem(LAST_CONVERSATION_KEY))
+    const value = Number(window.localStorage.getItem(context ? `${LAST_CONVERSATION_KEY}.${context}` : LAST_CONVERSATION_KEY))
     return Number.isSafeInteger(value) && value > 0 ? value : undefined
   } catch { return undefined }
 }
 
-export function saveLastConversationId(conversationId: number) {
-  try { window.localStorage.setItem(LAST_CONVERSATION_KEY, String(conversationId)) } catch { /* 저장하지 못해도 이번 대화는 계속한다 */ }
+export function saveLastConversationId(conversationId: number, context?: string) {
+  try { window.localStorage.setItem(context ? `${LAST_CONVERSATION_KEY}.${context}` : LAST_CONVERSATION_KEY, String(conversationId)) } catch { /* 저장하지 못해도 이번 대화는 계속한다 */ }
 }
 
 /** GET /api/chats/{conversationId}/messages */

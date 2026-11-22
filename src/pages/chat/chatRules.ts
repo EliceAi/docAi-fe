@@ -1,20 +1,4 @@
-// 화면별 추천 질문 (와이어프레임 SUGGESTED, 구자건 챗봇 질문서)
-export const SUGGESTED_QUESTIONS: Record<string, string[]> = {
-  S01: ['어떤 도움을 받을 수 있어?', '계약하기 전에 무엇부터 확인해야 해?', '어떤 서류를 올리면 돼?'],
-  S02: ['이 서류가 어떤 계약서인지 모르겠어.', '아르바이트 계약서는 무엇을 선택해?', '전세·월세 계약서는 무엇을 선택해?'],
-  S03: ['계약서가 여러 장인데 어떻게 올려?', '사진을 어떻게 찍어야 잘 읽혀?', '어떤 파일을 올릴 수 있어?'],
-  S04: ['빠진 페이지가 없는지 어떻게 확인해?', '글자가 흐린데 다시 찍어야 해?', '잘못 올린 페이지는 어떻게 바꿔?'],
-  S05: ['어떤 개인정보를 가리면 돼?', '금액이나 날짜도 가려야 해?', '잘못 가린 부분은 어떻게 되돌려?'],
-  S06: ['분석 전에 마지막으로 무엇을 확인해?', 'AI에는 어떤 문서가 전달돼?', '개인정보를 더 가리려면 어떻게 해?'],
-  S07: ['분석 결과에는 어떤 내용이 나와?', '분석이 실패하면 어떻게 해야 해?', '계약서에서 특약이 무슨 뜻이야?'],
-  S08: ['이 계약에서 먼저 확인할 내용은 뭐야?', '중요한 조건을 쉽게 정리해 줘.', '아직 확인되지 않은 정보가 있어?'],
-  S09: ['이 조항을 쉬운 말로 설명해 줘.', '이 조항이 나에게 어떤 영향을 줘?', '상대방에게 무엇을 확인하면 돼?'],
-  S11: ['어떤 문서끼리 비교해야 해?', '이전본과 수정본은 어떻게 구분해?', '페이지가 빠져 있어도 비교할 수 있어?'],
-  S12: ['가장 중요하게 바뀐 내용은 뭐야?', '바뀐 금액과 날짜만 정리해 줘.', '추가된 조항에서 무엇을 확인해야 해?'],
-  S13: ['이 날짜는 계약서 어디에 나와?', '종료일과 갱신 관련 기한은 어떻게 달라?', '날짜가 없으면 직접 입력할 수 있어?'],
-  S14: ['일정과 연결된 계약서를 보고 싶어.', '보관된 문서는 어디에서 찾아?', '휴대폰 알림도 받을 수 있어?'],
-  S15: ['이 문서를 연결해서 질문하고 싶어.', '이전 분석 결과를 다시 보고 싶어.', '보관한 계약서끼리 비교할 수 있어?'],
-}
+export { SUGGESTED_QUESTIONS } from '../../api/chatSuggestions'
 
 const SCREEN_NAMES: Record<string, string> = {
   S01: '홈', S02: '문서 선택', S03: '입력 방식', S04: '올린 페이지 확인', S05: '개인정보 가리기', S06: '보내기 전 확인',
@@ -34,13 +18,22 @@ export function needsLeaveConfirm(from: string | undefined, to: string): boolean
 }
 
 /** 챗봇이 지금 화면 내용을 보고 답하도록, 보고 있는 분석·조항·비교 번호를 주소에서 읽는다 */
-export function screenIdsFromPath(pathname: string): { analysisId?: number; clauseId?: number; comparisonId?: number } {
+export function screenIdsFromPath(pathname: string): { analysisId?: number; clauseId?: number; comparisonId?: number; contractId?: number } {
   const clause = pathname.match(/^\/analyses\/(\d+)\/clauses\/(\d+)/)
   if (clause) return { analysisId: Number(clause[1]), clauseId: Number(clause[2]) }
   const analysis = pathname.match(/^\/analyses\/(\d+)/)
   if (analysis) return { analysisId: Number(analysis[1]) }
   const comparison = pathname.match(/^\/comparisons\/(\d+)/)
   if (comparison) return { comparisonId: Number(comparison[1]) }
+  const contract = pathname.match(/^\/contracts\/(\d+)$/)
+  if (contract) return { contractId: Number(contract[1]) }
+  if (pathname.startsWith('/schedules/new?')) {
+    const params = new URLSearchParams(pathname.split('?')[1])
+    for (const key of ['comparisonId', 'analysisId'] as const) {
+      const id = Number(params.get(key))
+      if (Number.isSafeInteger(id) && id > 0) return { [key]: id }
+    }
+  }
   return {}
 }
 

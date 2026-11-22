@@ -20,6 +20,8 @@ import { NotificationsPage } from './pages/notifications/NotificationsPage'
 import { ScheduleDetailPage } from './pages/schedule/ScheduleDetailPage'
 import { ScheduleRegisterPage } from './pages/schedule/ScheduleRegisterPage'
 import { SchedulesPage } from './pages/schedule/SchedulesPage'
+import { DemoContractsPage } from './pages/contract-register/DemoContractsPage'
+import { shouldMock } from './api/mock-mode'
 
 // 앱의 모든 화면 주소. 주소 이름은 백엔드 API와 같은 규칙(복수형 명사)이다. S10 챗봇은 주소 없이 패널로 연다.
 const appRoutes: RouteObject[] = [
@@ -27,7 +29,7 @@ const appRoutes: RouteObject[] = [
   { path: '/notifications', element: <NotificationsPage /> }, // P01
   // S02~S06은 고른 문서 종류 같은 값을 화면이 바뀌어도 이어서 쓰도록 RegisterFlowProvider로 감싼다
   {
-    element: <RegisterFlowProvider><Outlet /></RegisterFlowProvider>,
+    element: shouldMock('createContract') ? <DemoContractsPage /> : <RegisterFlowProvider><Outlet /></RegisterFlowProvider>,
     children: [
       { path: '/contracts/new', element: <DocumentTypePage /> }, // S02
       { path: '/contracts/new/capture', element: <CapturePage /> }, // S03
@@ -60,4 +62,4 @@ export const router = createBrowserRouter([
       ...(SHOW_BOARDS ? [{ path: '/dev/boards', element: <BoardsPage /> }] : []),
     ],
   },
-])
+], { basename: typeof window !== 'undefined' && /^\/app(?:\/|$)/.test(window.location.pathname) ? '/app' : '/' })

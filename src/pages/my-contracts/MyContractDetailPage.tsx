@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import { getMyContract, type ContractDetail } from '../../api/contracts'
 import { useApiData } from '../../api/useApiData'
 import { Button, Header, Icon, Screen, TabBar, Tag } from '../../common/components'
+import { shouldMock } from '../../api/mock-mode'
+import { mockDocumentTypes } from '../../api/mocks/documentTypes'
 
 // S15 계약서 상세 · #16 구자건 · 보드: S15_내계약서_문서상세
 export function MyContractDetailPage() {
@@ -33,10 +35,10 @@ export function MyContractDetailPage() {
     )
   }
 
-  return <MyContractDetailView contract={data} />
+  return <MyContractDetailView contract={data} demo={shouldMock('getMyContract')} />
 }
 
-export function MyContractDetailView({ contract }: { contract: ContractDetail }) {
+export function MyContractDetailView({ contract, demo = false }: { contract: ContractDetail; demo?: boolean }) {
   return (
     <Screen header={<Header title="계약서 상세" back="/contracts" chatFrom="S15" contractId={contract.contractId} />} footer={<TabBar active="내 계약서" />}>
       <div className="infob">
@@ -52,7 +54,7 @@ export function MyContractDetailView({ contract }: { contract: ContractDetail })
       <div>
         <b style={{ fontSize: 21 }}>{contract.title}</b>
         <div className="mut">
-          {contract.documentTypeCode === 'EMPLOYMENT' ? '근로계약서' : '임대차계약서'}{contract.reviewLabel && ` · ${contract.reviewLabel}`}
+          {mockDocumentTypes.find(type => type.code === contract.documentTypeCode)?.name ?? '계약서'}{contract.reviewLabel && ` · ${contract.reviewLabel}`}
         </div>
       </div>
       {contract.keyTerms.length > 0 && (
@@ -82,6 +84,7 @@ export function MyContractDetailView({ contract }: { contract: ContractDetail })
         ))}
       </div>
       <Button to={`/analyses/${contract.analysisId}`} kind="l">분석 결과 전체 보기</Button>
+      {demo && [2, 4].includes(contract.contractId) && <Button to="/comparisons/new" kind="l">이전본·수정본 비교 예시 보기</Button>}
       <div className="note"><Icon name="info" size={14} />이 계약서로 질문하려면 위의 AI에게 질문을 눌러요</div>
     </Screen>
   )
