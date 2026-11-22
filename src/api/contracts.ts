@@ -34,6 +34,7 @@ export type ContractSummary = {
   analysisId: number
   missingItemCount?: number
   scheduleCount?: number
+  reviewState?: 'insufficient' | 'guide'
   previousVersion?: { contractId: number; version: number; savedAt: string }
 }
 
@@ -80,7 +81,12 @@ function persistContracts() {
 export function getMockContract(contractId: number): ContractDetail {
   restoreContracts()
   const stored = archivedContracts.get(contractId) ?? mockDeployContractDetails.find(contract => contract.contractId === contractId)
-  if (stored) return structuredClone(stored)
+  if (stored) {
+    const contract = structuredClone(stored)
+    if (!['EMPLOYMENT', 'LEASE'].includes(contract.documentTypeCode)) contract.reviewState = 'guide'
+    else if (contract.pageCount === 0) contract.reviewState = 'insufficient'
+    return contract
+  }
   // S11의 나머지 22종 수정본 예시는 원본 번호 + 1000을 사용한다.
   const baseId = contractId - 1000
   if (contractId >= 1000 && (archivedContracts.has(baseId) || mockDeployContractDetails.some(contract => contract.contractId === baseId) || mockGeneralAnalyses.some(analysis => analysis.contractId === baseId))) {
@@ -95,7 +101,7 @@ export function getMockContract(contractId: number): ContractDetail {
     savedAt: analysis.analyzedAt.replaceAll('.', '-'), needsCheckCount: analysis.checkCount, analysisId: analysis.analysisId,
     missingItemCount: analysis.missingItems.length, scheduleCount: 0, pageCount: 1, reviewLabel: analysis.reviewLabel,
     keyTerms: analysis.keyTerms.map(term => ({ label: term.label, value: term.value ?? '확인 필요', ...(term.state ? { state: term.state } : {}) })),
-    schedules: [], scheduleIds: [],
+    schedules: [], scheduleIds: [], reviewState: 'guide',
   }
 }
 
@@ -204,6 +210,7 @@ export function getMyContracts(): Promise<ContractSummary[]> {
     const schedules = getMockSchedules()
     return mockResponse(getMockCurrentContracts().map(contract => ({
       ...contract,
+      reviewState: getMockContract(contract.contractId).reviewState,
       scheduleCount: schedules.filter(schedule => schedule.contractId === contract.contractId).length,
     })))
   }

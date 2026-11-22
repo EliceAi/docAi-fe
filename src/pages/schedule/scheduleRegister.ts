@@ -38,9 +38,10 @@ export function buildNewSchedules(candidates: ScheduleCandidate[], selection: Re
       ? selection.chosenIdByTitle[conflictKey(candidate) ?? ''] === candidate.candidateId
       : selection.checkedIds.includes(candidate.candidateId) || (candidate.date === null && Boolean(typed))
     if (!picked) return []
-    const date = normalizeDate(typed || candidate.date || '')
+    const edited = Object.hasOwn(selection.typedDates, candidate.candidateId)
+    const date = normalizeDate(edited ? typed : candidate.date || '')
     if (!date) return []
-    return [{ candidateId: candidate.candidateId, title: candidate.title, date, source: typed ? 'typed' : candidate.source }]
+    return [{ candidateId: candidate.candidateId, title: candidate.title, date, source: edited ? 'typed' : candidate.source }]
   })
   const fromExtras = selection.extras.flatMap((extra): NewSchedule[] => {
     const date = normalizeDate(extra.date)

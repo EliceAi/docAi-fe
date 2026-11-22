@@ -14,7 +14,8 @@ export function PcIntro() {
         확인할 조항과 일정을 알려 드려요.
       </p>
       <div className="pc-actions">
-        {DEMO_VIDEO_URL && <a className="pc-btn primary" href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer">▶ 실제 동작 영상 보기</a>}
+        {(DEMO_VIDEO_URL || IS_DEMO_MODE) && <a className="pc-btn primary" href={DEMO_VIDEO_URL || '/#video'}>시연 영상 보기</a>}
+        {IS_DEMO_MODE && <a className="pc-btn" href="/#pipeline">AI 분석 과정</a>}
         {WIREFRAME_URL && <a className="pc-btn" href={WIREFRAME_URL} target="_blank" rel="noreferrer">화면 설계안 보기</a>}
       </div>
       <div className="pc-qr">

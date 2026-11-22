@@ -82,6 +82,7 @@ export function HomeScreen({ upcoming, onStartSample, sampleFailed = false, demo
       <div className="note" style={{ justifyContent: 'center' }}>
         <Icon name="lock" size={14} /> {demo ? '시연 모드 · 새 계약서 업로드 없이 예시로 체험해요' : '개인정보는 내가 직접 가린 뒤에만 AI에 보내요'}
       </div>
+      {demo && <a className="more2" href="/#video" style={{ alignSelf: 'center' }}>AI 분석 과정·시연 영상 보기 <Icon name="chev" size={14} /></a>}
       {isFirstUse ? <EmptyUpcoming /> : <UpcomingSchedules schedules={upcoming} />}
       <div className="card">
         <div className="h2">내 상황에 맞는 문서 찾기<Link className="more" to="/contracts/new">23종 보기</Link></div>

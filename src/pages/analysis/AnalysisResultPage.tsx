@@ -158,17 +158,17 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt, compact }:
       </div>
 
   const content = (
-    <Screen header={<Header title="분석 결과" back="/" chatFrom="S08" contractId={analysis.contractId} />}
+    <Screen header={<Header title={compact && isGeneral ? '공통 확인 항목' : '분석 결과'} back="/" chatFrom="S08" contractId={analysis.contractId} />}
             footer={<Footer><Button to={`/schedules/new?analysisId=${analysis.analysisId}`}>일정 확인하고 저장</Button></Footer>}>
       <div>
         <div className="row"><b style={{ fontSize: 21 }}>{analysis.documentTitle}</b>{analysis.isSample && <Tag>예시</Tag>}{analysis.version ? <Tag>v{analysis.version}</Tag> : null}</div>
         <div className="mut">{[
           analysis.documentTypeName ?? (analysis.documentTypeCode === 'EMPLOYMENT' ? '근로계약서' : '임대차계약서'),
-          analysis.reviewLabel,
-          `${analysis.analyzedAt} 분석`,
+          compact && isGeneral ? '공통 확인 예시' : analysis.reviewLabel,
+          compact && isGeneral ? '' : `${analysis.analyzedAt} 분석`,
         ].filter(Boolean).join(' · ')}</div>
       </div>
-      <div className="note"><Icon name="info" size={14} /> {analysis.readScope}</div>
+      <div className="note"><Icon name="info" size={14} /> {compact && isGeneral ? '개별 문서를 AI로 분석한 결과가 아니에요. 일반적인 확인 항목을 안내하는 예시예요.' : analysis.readScope}</div>
       {isPartial && <>
         <div className="warnb"><Icon name="warn" size={18} /><span style={{ flex: 1 }}><b>2쪽 일부를 읽지 못했어요</b><br />읽은 부분만 결과에 넣었어요. 못 읽은 칸은 0이나 '없음'이 아니라 '확인 필요'로 표시해요.</span></div>
         <div className="row">
@@ -178,7 +178,7 @@ function AnalysisResultContent({ initialAnalysis, forceSimilarPrompt, compact }:
       </>}
       {compact && counts}
       <TermsContainer className="card">
-        {compact ? <summary className="h2" style={{ cursor: 'pointer' }}>주요 조건 {analysis.keyTerms.length}개 · 펼쳐 보기</summary> : <div className="h2">주요 조건</div>}
+        {compact ? <summary className="h2" style={{ cursor: 'pointer' }}>{isGeneral ? '문서 안내' : '주요 조건'} {analysis.keyTerms.length}개 · 펼쳐 보기</summary> : <div className="h2">주요 조건</div>}
         <div className="cg" style={compact ? { gridTemplateColumns: '1fr' } : undefined}>
           {analysis.keyTerms.map(term => (
             <div key={term.label} className={`cv${term.state ? ` ${term.state}` : ''}`}>

@@ -79,6 +79,7 @@ export function ChatPanel({ opening, onClose }: ChatPanelProps) {
   return (
     <>
       <ChatPanelView linkedDoc={linkedDoc} context={screenContext(opening.from)} messages={messages} chips={chips} input={input} sending={sending}
+        demo={shouldMock('askChatQuestion')}
         onInput={setInput} onSend={() => void send(input)} onChip={question => void send(question)} onAction={chooseAction}
         onRetry={() => void send(failedQuestion.current, true)} onClose={onClose} />
       {pending && (
@@ -118,15 +119,33 @@ type ChatPanelViewProps = {
   onAction?: (action: ChatAction) => void
   onRetry?: () => void
   onClose?: () => void
+  demo?: boolean
 }
 
 /** 와이어프레임 chatPanel(): 보드와 실제 패널이 같은 화면을 그린다 */
-export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, chips, input, sending = false, onInput, onSend, onChip, onAction, onRetry, onClose }: ChatPanelViewProps) {
+export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, chips, input, sending = false, onInput, onSend, onChip, onAction, onRetry, onClose, demo = false }: ChatPanelViewProps) {
   const end = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   useEffect(() => { end.current?.scrollIntoView?.({ block: 'end' }) }, [messages, sending])
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    panel.current?.querySelector<HTMLElement>('[aria-label="닫기"]')?.focus()
+    return () => { if (previous?.isConnected) previous.focus() }
+  }, [])
+
+  function handleKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose?.(); return }
+    if (event.key !== 'Tab') return
+    const targets = panel.current?.querySelectorAll<HTMLElement>('input, [role="button"][tabindex="0"]')
+    const first = targets?.[0]
+    const last = targets?.[targets.length - 1]
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+  }
 
   return (
     <Sheet>
+      <div ref={panel} className="chat-dialog" role="dialog" aria-modal="true" aria-label="AI에게 질문" onKeyDown={handleKey}>
       <div className="grab" />
       <div className="sh-t">
         <Mascot face={1} size={30} />
@@ -140,6 +159,7 @@ export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, ch
         <div className="cl"><Icon name="info" size={15} /><span>일반 질문 · 계약서 연결 없음</span></div>
       )}
       <div className="ctx"><Icon name="info" size={13} /><span>{context}</span></div>
+      {demo && <div className="note chat-demo-note">시연 모드 · 추천 질문과 기본 금액 질문에 예시로 답해요. 새 AI 답변은 생성하지 않아요.</div>}
       {banner && (
         <div className="banner"><Icon name="check" size={16} />{banner.text}
           <a role="button" tabIndex={0} onClick={banner.onAction} onKeyDown={activate}>{banner.actionLabel}</a></div>
@@ -159,10 +179,11 @@ export function ChatPanelView({ linkedDoc, onSwap, context, banner, messages, ch
         {chips.map(chip => <a key={chip} className="qc" role="button" tabIndex={sending ? -1 : 0} aria-disabled={sending} onClick={() => { if (!sending) onChip?.(chip) }} onKeyDown={activate}>{chip}</a>)}
       </div>
       <div className="inp">
-        <input aria-label="질문 입력" placeholder="궁금한 걸 물어보세요" value={input} className={input ? 'typed' : ''}
+        <input aria-label="질문 입력" placeholder={demo ? '추천 질문으로 먼저 체험해 보세요' : '궁금한 걸 물어보세요'} value={input} className={input ? 'typed' : ''}
           style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: 'transparent', font: 'inherit', color: 'inherit' }}
           onChange={event => onInput?.(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) onSend?.() }} />
         <b role="button" tabIndex={sending ? -1 : 0} aria-label="보내기" aria-disabled={sending} onClick={() => { if (!sending) onSend?.() }} onKeyDown={activate}><Icon name="send" size={18} /></b>
+      </div>
       </div>
     </Sheet>
   )
