@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>문서AI · AI 분석 과정</title>
+<style>
+:root{
+  --bg:#f7f7f5; --card:#ffffff; --ink:#1d1d1f; --sub:#5b5b63; --line:#d9d8de;
+  --ai:#3b5bdb; --ai-bg:#eef2ff; --code:#2b8a3e; --code-bg:#ebfbee;
+  --db:#9c5b00; --db-bg:#fff4e0; --app:#6f42c1; --app-bg:#f3edff;
+  --ext:#868e96; --ext-bg:#f1f3f5; --warn:#c92a2a; --warn-bg:#fff0f0;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16161a; --card:#1f1f25; --ink:#ececf1; --sub:#a4a4b0; --line:#3a3a44;
+    --ai:#91a7ff; --ai-bg:#1e2440; --code:#69db7c; --code-bg:#17301d;
+    --db:#ffc078; --db-bg:#3a2a12; --app:#c4a7ff; --app-bg:#2a1f40;
+    --ext:#adb5bd; --ext-bg:#2a2b30; --warn:#ff8787; --warn-bg:#3a1d1d;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16161a; --card:#1f1f25; --ink:#ececf1; --sub:#a4a4b0; --line:#3a3a44;
+  --ai:#91a7ff; --ai-bg:#1e2440; --code:#69db7c; --code-bg:#17301d;
+  --db:#ffc078; --db-bg:#3a2a12; --app:#c4a7ff; --app-bg:#2a1f40;
+  --ext:#adb5bd; --ext-bg:#2a2b30; --warn:#ff8787; --warn-bg:#3a1d1d;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:1000px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:28px;margin:0 0 6px}
+h2{font-size:21px;margin:52px 0 12px;padding-top:10px;border-top:1px solid var(--line)}
+h3{font-size:17px;margin:26px 0 8px}
+p{margin:8px 0}
+.lead{color:var(--sub)}
+nav{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:18px 0;font-size:14px}
+nav a{color:var(--ai);text-decoration:none;margin-right:14px;white-space:nowrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:12px 0}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);font-size:14px;margin:10px 0}
+th,td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--bg);font-weight:600;white-space:nowrap}
+pre{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font:12.5px/1.55 ui-monospace,Menlo,monospace;margin:8px 0}
+pre.ai{border-left-color:var(--ai)} pre.app{border-left-color:var(--app)} pre.db{border-left-color:var(--db)} pre.code{border-left-color:var(--code)}
+.cap{font-size:13px;color:var(--sub);margin:14px 0 2px;font-weight:600}
+.tag{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.t-ai{color:var(--ai);background:var(--ai-bg)} .t-code{color:var(--code);background:var(--code-bg)}
+.t-db{color:var(--db);background:var(--db-bg)} .t-app{color:var(--app);background:var(--app-bg)} .t-ext{color:var(--ext);background:var(--ext-bg)}
+.note{background:var(--ai-bg);border-radius:10px;padding:10px 14px;font-size:14px;margin:10px 0}
+.warn{background:var(--warn-bg);border-radius:10px;padding:10px 14px;font-size:14px;margin:10px 0}
+.diagram{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;margin:12px 0;overflow-x:auto}
+.diagram svg{display:block;width:100%;min-width:760px;height:auto}
+svg text{fill:var(--ink);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+svg .s{fill:var(--sub)}
+svg .b-app{fill:var(--app-bg);stroke:var(--app)} svg .b-ai{fill:var(--ai-bg);stroke:var(--ai)}
+svg .b-code{fill:var(--code-bg);stroke:var(--code)} svg .b-db{fill:var(--db-bg);stroke:var(--db)}
+svg .b-ext{fill:var(--ext-bg);stroke:var(--ext)} svg .b-srv{fill:none;stroke:var(--line);stroke-dasharray:6 5}
+svg .ln{stroke:var(--sub);fill:none;stroke-width:1.6}
+svg .ln-ai{stroke:var(--ai);fill:none;stroke-width:1.8}
+svg .ln-db{stroke:var(--db);fill:none;stroke-width:1.8}
+svg .ln-app{stroke:var(--app);fill:none;stroke-width:1.8}
+svg .ln-ext{stroke:var(--ext);fill:none;stroke-width:1.6;stroke-dasharray:5 4}
+svg .num{fill:var(--ink)} svg .numt{fill:var(--card);font-weight:700;font-size:12px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:8px 0}
+.steps li{position:relative;padding-left:34px;margin:6px 0}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:2px;width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--card);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+@media (max-width:560px){h1{font-size:23px}}
+
+/* 제출 첫 페이지: 스크롤해도 위에 붙는 메뉴 */
+.site-bar{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--line)}
+.site-bar-in{max-width:1000px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.site-name{font-weight:700;font-size:16px;margin-right:auto}
+.site-link{color:var(--sub);text-decoration:none;font-size:14px;padding:6px 12px;border-radius:8px}
+.site-link:hover,.site-link.on{background:var(--ai-bg);color:var(--ai)}
+.site-try{background:var(--ai);color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:7px 14px;border-radius:8px;white-space:nowrap}
+.site-try:hover{opacity:.9}
+h1,h2,#video{scroll-margin-top:72px}
+.video-box{position:relative;aspect-ratio:16/9;border:1px dashed var(--line);border-radius:12px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--sub);text-align:center;padding:16px}
+.video-box b{color:var(--ink);font-size:17px}
+.try-card{margin-top:28px;display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--ai);border-radius:12px;background:var(--ai-bg)}
+.try-card p{margin:0;flex:1;color:var(--ink)}
+.try-card small{display:block;color:var(--sub)}
+@media (max-width:640px){.site-link{padding:6px 8px;font-size:13px}.site-name{display:none}.try-card{flex-direction:column;align-items:stretch;text-align:center}}
+video{display:block;width:100%;max-height:75vh;background:var(--ink);border-radius:10px}
+.card h3{margin-top:0}
+</style>
+</head>
+<body>
+<header class="site-bar">
+  <div class="site-bar-in">
+    <span class="site-name">문서AI</span>
+    <a class="site-link on" href="#pipeline">AI 분석 과정</a>
+    <a class="site-link" href="#video">시연 영상</a>
+    <a class="site-try" href="/app" target="_top">직접 써 보기 →</a>
+  </div>
+</header>
+
+<main>
+
+<h1 id="pipeline">분석 파이프라인은 어떻게 동작하나</h1>
+<p class="lead">계약서 사진 한 장이 결과 화면이 되기까지, 누가 누구에게 어떤 JSON을 보내고, 서버는 무엇을 계산하고, 법령 DB는 언제 어떻게 쓰이는지를 실제 코드(2026-11-18 dev 기준)대로 정리했습니다.</p>
+
+<nav>
+<a href="#arch">1. 구성도</a><a href="#seq">2. 시간 순서</a><a href="#json">3. 주고받는 JSON</a><a href="#calc">4. 서버 계산</a><a href="#law">5. 법령 DB</a><a href="#time">6. 시간·비용</a>
+</nav>
+
+<!-- ============ 1 ============ -->
+<h2 id="arch">1. 구성도: 누가 있고 무엇이 오가나</h2>
+<p>번호는 한 번의 분석에서 일어나는 순서입니다. 법제처 API 점선은 분석 중에는 쓰지 않고, 미리 법령을 채울 때만 씁니다.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 960 560" role="img" aria-label="분석 파이프라인 구성도">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+  </defs>
+
+  <!-- App -->
+  <rect class="b-app" x="20" y="200" width="150" height="130" rx="12" stroke-width="1.6"/>
+  <text x="95" y="232" text-anchor="middle" font-weight="700" font-size="16">앱</text>
+  <text x="95" y="256" text-anchor="middle" class="s" font-size="12">가린 사진 올리기</text>
+  <text x="95" y="274" text-anchor="middle" class="s" font-size="12">분석 요청</text>
+  <text x="95" y="292" text-anchor="middle" class="s" font-size="12">2~3초마다 결과 조회</text>
+
+  <!-- Server frame -->
+  <rect class="b-srv" x="220" y="40" width="470" height="480" rx="16" stroke-width="1.4"/>
+  <text x="236" y="64" font-weight="700" font-size="15">Spring 서버 (docai-be)</text>
+
+  <rect class="b-app" x="240" y="84" width="200" height="56" rx="10" stroke-width="1.4"/>
+  <text x="340" y="108" text-anchor="middle" font-weight="600" font-size="13">API (Controller)</text>
+  <text x="340" y="126" text-anchor="middle" class="s" font-size="11">요청 202 · 결과 조회 · 직접 입력</text>
+
+  <rect class="b-code" x="240" y="160" width="430" height="300" rx="10" stroke-width="1.4"/>
+  <text x="256" y="182" font-weight="600" font-size="13">AnalysisPipeline (백그라운드 스레드)</text>
+
+  <rect class="b-ai" x="256" y="196" width="190" height="44" rx="8" stroke-width="1.2"/>
+  <text x="351" y="216" text-anchor="middle" font-size="12" font-weight="600">ExtractStep · GPT 1차</text>
+  <text x="351" y="232" text-anchor="middle" class="s" font-size="11">사진 → 조항·주요 조건</text>
+
+  <rect class="b-code" x="256" y="250" width="190" height="44" rx="8" stroke-width="1.2"/>
+  <text x="351" y="270" text-anchor="middle" font-size="12" font-weight="600">RuleStep · 숫자 규칙</text>
+  <text x="351" y="286" text-anchor="middle" class="s" font-size="11">최저임금 · 빠진 항목</text>
+
+  <rect class="b-db" x="256" y="304" width="190" height="44" rx="8" stroke-width="1.2"/>
+  <text x="351" y="324" text-anchor="middle" font-size="12" font-weight="600">EvidenceStep · 근거 찾기</text>
+  <text x="351" y="340" text-anchor="middle" class="s" font-size="11">의심 조항마다 조문 ≤5개</text>
+
+  <rect class="b-ai" x="256" y="358" width="190" height="44" rx="8" stroke-width="1.2"/>
+  <text x="351" y="378" text-anchor="middle" font-size="12" font-weight="600">JudgeStep · GPT 2차</text>
+  <text x="351" y="394" text-anchor="middle" class="s" font-size="11">판단 → 검증 → 저장</text>
+
+  <rect class="b-code" x="256" y="412" width="190" height="36" rx="8" stroke-width="1.2"/>
+  <text x="351" y="435" text-anchor="middle" font-size="12" font-weight="600">FinishStep · 완료</text>
+
+  <path class="ln" d="M351 240 V250" marker-end="url(#ar)"/>
+  <path class="ln" d="M351 294 V304" marker-end="url(#ar)"/>
+  <path class="ln" d="M351 348 V358" marker-end="url(#ar)"/>
+  <path class="ln" d="M351 402 V412" marker-end="url(#ar)"/>
+
+  <rect class="b-code" x="470" y="196" width="186" height="96" rx="8" stroke-width="1.2"/>
+  <text x="563" y="218" text-anchor="middle" font-size="12" font-weight="600">GptClient</text>
+  <text x="563" y="238" text-anchor="middle" class="s" font-size="11">JSON 스키마 강제(strict)</text>
+  <text x="563" y="254" text-anchor="middle" class="s" font-size="11">통신 오류만 1회 재시도</text>
+  <text x="563" y="270" text-anchor="middle" class="s" font-size="11">호출마다 ai_call_log 기록</text>
+
+  <rect class="b-code" x="470" y="304" width="186" height="98" rx="8" stroke-width="1.2"/>
+  <text x="563" y="326" text-anchor="middle" font-size="12" font-weight="600">JudgeValidator</text>
+  <text x="563" y="346" text-anchor="middle" class="s" font-size="11">준 근거만 인용했나</text>
+  <text x="563" y="362" text-anchor="middle" class="s" font-size="11">근거 없으면 UNCERTAIN</text>
+  <text x="563" y="378" text-anchor="middle" class="s" font-size="11">단정 표현 · 내부 키 거르기</text>
+
+  <rect class="b-code" x="470" y="412" width="186" height="36" rx="8" stroke-width="1.2"/>
+  <text x="563" y="435" text-anchor="middle" font-size="11" class="s">heartbeat 15초 · 멈춤 2분 정리</text>
+
+  <!-- OpenAI -->
+  <rect class="b-ai" x="740" y="150" width="200" height="120" rx="12" stroke-width="1.6"/>
+  <text x="840" y="182" text-anchor="middle" font-weight="700" font-size="16">OpenAI GPT</text>
+  <text x="840" y="204" text-anchor="middle" class="s" font-size="12">gpt-5.5</text>
+  <text x="840" y="224" text-anchor="middle" class="s" font-size="12">1차: 사진 + 지시문</text>
+  <text x="840" y="242" text-anchor="middle" class="s" font-size="12">2차: 글만</text>
+
+  <!-- DB -->
+  <rect class="b-db" x="740" y="300" width="200" height="150" rx="12" stroke-width="1.6"/>
+  <text x="840" y="330" text-anchor="middle" font-weight="700" font-size="16">PostgreSQL</text>
+  <text x="840" y="354" text-anchor="middle" class="s" font-size="12">분석 테이블</text>
+  <text x="840" y="372" text-anchor="middle" class="s" font-size="12">analysis · clause · ref</text>
+  <text x="840" y="396" text-anchor="middle" class="s" font-size="12">법령 DB (같은 DB)</text>
+  <text x="840" y="414" text-anchor="middle" class="s" font-size="12">law · law_article 2,570항</text>
+  <text x="840" y="432" text-anchor="middle" class="s" font-size="12">issue_tag 21 · guidance</text>
+
+  <!-- File storage -->
+  <rect class="b-ext" x="20" y="400" width="150" height="70" rx="12" stroke-width="1.4"/>
+  <text x="95" y="428" text-anchor="middle" font-weight="700" font-size="14">파일 저장소</text>
+  <text x="95" y="448" text-anchor="middle" class="s" font-size="12">가린 사진 (B 담당)</text>
+
+  <!-- 법제처 -->
+  <rect class="b-ext" x="740" y="470" width="200" height="66" rx="12" stroke-width="1.4"/>
+  <text x="840" y="498" text-anchor="middle" font-weight="700" font-size="14">법제처 Open API</text>
+  <text x="840" y="518" text-anchor="middle" class="s" font-size="12">법령 적재 때만 (분석 중 X)</text>
+
+  <!-- arrows -->
+  <path class="ln-app" d="M170 240 H240 V112" marker-end="url(#ar)"/>
+  <circle class="num" cx="205" cy="240" r="11"/><text class="numt" x="205" y="244" text-anchor="middle">1</text>
+
+  <path class="ln" d="M95 400 V360 H230 Q250 360 250 230 H256" marker-end="url(#ar)"/>
+  <circle class="num" cx="150" cy="360" r="11"/><text class="numt" x="150" y="364" text-anchor="middle">2</text>
+
+  <path class="ln-ai" d="M656 222 H740" marker-end="url(#ar)"/>
+  <path class="ln-ai" d="M740 248 H656" marker-end="url(#ar)"/>
+  <circle class="num" cx="698" cy="222" r="11"/><text class="numt" x="698" y="226" text-anchor="middle">3</text>
+  <path class="ln" d="M446 218 H470" marker-end="url(#ar)"/>
+  <path class="ln" d="M446 380 Q460 380 460 280 H470" marker-end="url(#ar)"/>
+
+  <path class="ln-db" d="M446 326 H462 Q470 326 470 300" stroke-opacity="0"/>
+  <path class="ln-db" d="M656 340 H740" marker-end="url(#ar)"/>
+  <path class="ln-db" d="M740 362 H656" marker-end="url(#ar)"/>
+  <circle class="num" cx="698" cy="340" r="11"/><text class="numt" x="698" y="344" text-anchor="middle">4</text>
+  <path class="ln-db" d="M446 326 H462 V420" stroke-opacity="0"/>
+
+  <path class="ln-ext" d="M840 470 V450" marker-end="url(#ar)"/>
+
+  <path class="ln-app" d="M240 126 H200 Q190 126 190 300 H170" marker-end="url(#ar)"/>
+  <circle class="num" cx="190" cy="180" r="11"/><text class="numt" x="190" y="184" text-anchor="middle">5</text>
+</svg>
+</div>
+
+<div class="tbl"><table>
+<tr><th>번호</th><th>무엇이 오가나</th></tr>
+<tr><td>1</td><td><span class="tag t-app">앱 → 서버</span> 분석 요청. 서버는 기록만 만들고 바로 202 + analysisId</td></tr>
+<tr><td>2</td><td><span class="tag t-ext">저장소 → 서버</span> 서버가 DB의 image_key로 가린 사진을 꺼냄 (요청에는 사진이 없음)</td></tr>
+<tr><td>3</td><td><span class="tag t-ai">서버 ↔ GPT</span> 1차(사진 포함), 2차(글만), 필요하면 추가 조회 1회. 모두 JSON 스키마로 답을 받음</td></tr>
+<tr><td>4</td><td><span class="tag t-db">서버 ↔ DB</span> 단계마다 결과 저장, 근거 찾기 때 법령 테이블 검색 (외부 API 호출 없음)</td></tr>
+<tr><td>5</td><td><span class="tag t-app">서버 → 앱</span> 결과 조회 응답. 진행 중이면 진행 단계, 끝나면 결과 전체</td></tr>
+</table></div>
+
+<!-- ============ 2 ============ -->
+<h2 id="seq">2. 시간 순서: 실제 연봉계약서 한 건 (약 80초)</h2>
+
+<div class="diagram">
+<svg viewBox="0 0 960 470" role="img" aria-label="분석 한 건의 시간 순서">
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+  <!-- lanes -->
+  <g font-size="14" font-weight="700" text-anchor="middle">
+    <rect class="b-app" x="40" y="14" width="140" height="34" rx="8"/><text x="110" y="36">앱</text>
+    <rect class="b-code" x="300" y="14" width="160" height="34" rx="8"/><text x="380" y="36">서버</text>
+    <rect class="b-db" x="560" y="14" width="140" height="34" rx="8"/><text x="630" y="36">DB · 법령 DB</text>
+    <rect class="b-ai" x="790" y="14" width="140" height="34" rx="8"/><text x="860" y="36">GPT</text>
+  </g>
+  <g class="ln" stroke-dasharray="3 5">
+    <path d="M110 48 V460"/><path d="M380 48 V460"/><path d="M630 48 V460"/><path d="M860 48 V460"/>
+  </g>
+  <g font-size="12">
+    <path class="ln-app" d="M110 70 H378" marker-end="url(#ar2)"/><text x="244" y="64" text-anchor="middle">POST 분석 요청</text>
+    <path class="ln-app" d="M380 92 H112" marker-end="url(#ar2)"/><text x="244" y="86" text-anchor="middle">202 analysisId (즉시)</text>
+
+    <path class="ln-db" d="M380 116 H628" marker-end="url(#ar2)"/><text x="505" y="110" text-anchor="middle">사진 위치 읽기 · 사진 꺼내기</text>
+
+    <path class="ln-ai" d="M380 142 H858" marker-end="url(#ar2)"/><text x="620" y="136" text-anchor="middle">1차: 지시문 + 사진 2장 + 출력 스키마</text>
+    <rect x="852" y="146" width="16" height="44" fill="var(--ai)" opacity=".25"/><text x="878" y="172" class="s">약 29초</text>
+    <path class="ln-ai" d="M858 194 H382" marker-end="url(#ar2)"/><text x="620" y="188" text-anchor="middle">조항 9개 · 주요 조건 · 날짜 (JSON)</text>
+
+    <path class="ln-db" d="M380 218 H628" marker-end="url(#ar2)"/><text x="505" y="212" text-anchor="middle">합쳐서 저장 (조항 = JUDGING)</text>
+    <text x="392" y="240" class="s">최저임금 · 빠진 항목 계산 (1초 미만)</text>
+    <path class="ln-db" d="M380 262 H628" marker-end="url(#ar2)"/><text x="505" y="256" text-anchor="middle">의심 조항마다 조문 검색</text>
+    <path class="ln-db" d="M630 282 H382" marker-end="url(#ar2)"/><text x="505" y="278" text-anchor="middle">L1~L5, G 근거 (스냅샷 저장)</text>
+
+    <path class="ln-ai" d="M380 306 H858" marker-end="url(#ar2)"/><text x="620" y="300" text-anchor="middle">2차: 목차 + 의심 조항 원문 + 근거 (글만)</text>
+    <rect x="852" y="310" width="16" height="50" fill="var(--ai)" opacity=".25"/><text x="878" y="338" class="s">약 37초</text>
+    <path class="ln-ai" d="M858 364 H382" marker-end="url(#ar2)"/><text x="620" y="358" text-anchor="middle">판정 + needMore (JSON)</text>
+
+    <path class="ln-ai" d="M380 386 H858" marker-end="url(#ar2)"/><text x="620" y="380" text-anchor="middle">추가 조회: 그 조항 + 새 근거 (약 11초)</text>
+    <text x="392" y="408" class="s">검증 → 저장 → 조건부 COMPLETED</text>
+
+    <path class="ln-app" d="M110 432 H378" marker-end="url(#ar2)"/><text x="244" y="426" text-anchor="middle">GET 결과 (2~3초마다)</text>
+    <path class="ln-app" d="M380 454 H112" marker-end="url(#ar2)"/><text x="244" y="448" text-anchor="middle">COMPLETED + result</text>
+  </g>
+</svg>
+</div>
+<p>앱은 1번 요청 직후부터 결과를 조회합니다. 진행 중에는 progressStep이 READING_TEXT(1차) → FINDING_TERMS(합치기·규칙) → MATCHING_LAWS(근거) → SUMMARIZING(2차) → DONE으로 바뀌어 진행 화면을 그릴 수 있습니다.</p>
+
+<!-- ============ 3 ============ -->
+<h2 id="json">3. 단계마다 주고받는 JSON</h2>
+
+<h3>3-1. 앱 → 서버: 분석 요청</h3>
+<p class="cap">요청: POST /api/contracts/12/analyses (본문 없음, 사진도 없음)</p>
+<p class="cap">응답 202 (바로 돌아옴)</p>
+<pre class="app">{ "status": 202,
+  "data": { "analysisId": 88, "contractId": 12, "status": "ANALYZING",
+            "progressStep": "READING_TEXT", "readProgress": { "done": 0, "total": 1 } } }</pre>
+
+<h3>3-2. 서버 → GPT 1차 (사진 읽기)</h3>
+<p>OpenAI Chat Completions에 보내는 본문 모양입니다. 사진은 base64로 넣고, 답의 모양은 JSON 스키마로 강제합니다.</p>
+<pre class="ai">{
+  "model": "gpt-5.5",
+  "messages": [
+    { "role": "system", "content": "모든 조항을 그대로 옮겨 적고, 문제가 있어 보이는 조항에만 의심 표시와 검색어를 붙인다.
+                                    최종 판단은 하지 않는다. 직접 쓰는 글에는 c1 같은 키를 쓰지 않는다. ...
+                                    꼬리표 목록: PENALTY_ON_RESIGNATION, MIN_WAGE_SHORTFALL, ... (21개)" },
+    { "role": "user", "content": [
+        { "type": "text", "text": "고른 문서 종류: 근로계약서(EMPLOYMENT). 1~2쪽" },
+        { "type": "image_url", "image_url": { "url": "data:image/jpeg;base64,...", "detail": "high" } },
+        { "type": "image_url", "image_url": { "url": "data:image/jpeg;base64,...", "detail": "high" } } ] }
+  ],
+  "response_format": { "type": "json_schema",
+                       "json_schema": { "name": "extract", "strict": true, "schema": { ... } } },
+  "reasoning_effort": "low",
+  "max_completion_tokens": 32000
+}</pre>
+<p>지시문과 꼬리표 목록은 매번 같은 글이라 앞에 둡니다. 그래서 OpenAI가 이 부분을 캐시해 싸게 계산합니다(실제로 입력 8,567토큰 중 7,936토큰이 캐시).</p>
+
+<h3>3-3. GPT 1차 → 서버 (스키마대로 온 답)</h3>
+<pre class="ai">{
+  "documentTitle": "연봉계약서",
+  "contractDate": "2026-09-08",
+  "typeCheck": { "matchesSelected": true, "detectedTypeName": null },
+  "wageOnlyDocument": true,                       // 임금만 정한 문서인지
+  "pages": [ { "pageNo": 1, "readState": "READ" }, { "pageNo": 2, "readState": "READ" } ],
+  "clauses": [ {
+      "clauseKey": "c1", "pageNo": 1, "articleNo": "제1조", "title": "임금",
+      "originalText": "월 기본급 ... 약정연장근로수당 249,999원 ...",
+      "oneLine": "월급 구성과 금액",
+      "location": "1쪽 위쪽 표",
+      "continuesFromPreviousPage": false, "continuesToNextPage": false,
+      "issueFound": true,                             // 의심일 뿐 최종 판단 아님
+      "issueSummary": "연장근로수당을 월급에 미리 넣어 둠",
+      "issueTag": "INCLUSIVE_WAGE",                   // 꼬리표 (없으면 null)
+      "lawHints": [ { "law": "근로기준법", "article": "제56조" } ],
+      "searchKeywords": [ "연장근로", "가산임금" ],
+      "relatedClauseKeys": [ "c4" ] } ],
+  "keyTerms": [ {
+      "label": "임금", "state": "WRITTEN", "value": "월 2,916,660원 (기본급·식대·약정연장수당)",
+      "valueJson": { "type": "MONTHLY", "amount": 2916660, "basePay": 2666661,
+                     "hoursPerDay": null, "daysPerWeek": null, "monthlyHours": 209,
+                     "start": null, "end": null },     // 서버 계산용 숫자
+      "clauseKey": "c1", "evidence": "1쪽 제1조" } ],
+  "dates": [ { "label": "계약 시작일", "date": "2026-09-08", "clauseKey": "c2" } ]
+}</pre>
+<div class="note">GPT는 글(value)과 계산용 숫자(valueJson)를 따로 줍니다. 화면에는 value를, 서버 계산에는 valueJson만 씁니다. 숫자를 글에서 다시 뽑지 않으니 계산이 흔들리지 않습니다.</div>
+
+<h3>3-4. 서버가 합쳐서 DB에 넣는 모양</h3>
+<div class="tbl"><table>
+<tr><th>GPT 칸</th><th>DB</th><th>서버가 하는 일</th></tr>
+<tr><td>clauses[]</td><td>analysis_clause (verdict = JUDGING)</td><td>묶음 경계의 중복 조항 합치기, clauseKey를 c1부터 다시 매김, 설명 글 속 c숫자는 "관련 조항"으로</td></tr>
+<tr><td>relatedClauseKeys</td><td>analysis_clause_relation</td><td>새 키로 바꾸고 같은 쌍은 하나만</td></tr>
+<tr><td>keyTerms[]</td><td>analysis_key_term</td><td>label 고정 목록에 맞춤. 계약서 값은 자르지 않음</td></tr>
+<tr><td>전체 답</td><td>analysis_chunk.result_json, analysis.extraction_json</td><td>원본 보관, contractDate → law_base_date (법령 기준일)</td></tr>
+<tr><td>issueTag</td><td>analysis_clause.issue_tag</td><td>DB에 없는 꼬리표면 null로 바꾸고 기록</td></tr>
+</table></div>
+
+<h3>3-5. 근거 찾기 결과 (analysis_clause_ref 행)</h3>
+<pre class="db">clause c1 의 근거
+ L1  근로기준법 제56조 제1항 (연장·야간 및 휴일 근로)  found_by=TAG_MAP   ref_text="사용자는 연장근로에 대하여는 ..."
+ L2  근로기준법 제53조 제1항 (연장 근로의 제한)        found_by=TAG_MAP   ref_text="당사자 간에 합의하면 1주 간에 12시간을 ..."
+ L3  근로기준법 제56조 제2항                          found_by=AI_HINT   ...
+ G4  (해석 메모) 포괄임금 약정의 유효 요건             found_by=TAG_MAP   ...
+cited = false (2차가 인용하고 검증을 통과하면 true)</pre>
+<p>ref_text는 그때의 조문 내용을 복사해 둔 것입니다. 나중에 법이 바뀌어도 이 분석의 근거는 그대로 남습니다.</p>
+
+<h3>3-6. 서버 → GPT 2차 (판단). 사진 없이 글만</h3>
+<p>본문 형식은 1차와 같고(model, response_format, reasoning_effort "medium"), user 내용이 아래 글 두 덩어리입니다.</p>
+<pre class="ai">[전체 목차] clauseKey | 조 번호 | 제목 | 한 줄 요약
+- c1 | 제1조 | 임금 | 월급 구성과 금액
+- c2 | 제2조 | 계약기간 | 2026.9.8 ~ 2027.3.31
+- c4 | 제4조 | 법정수당 지급 및 결근공제 | 일부 직원 법정수당 미지급
+...
+[규칙 결과: 빠진 필수 항목] (코드가 계산함. 판단과 어긋나게 쓰지 않는다)
+- 근로계약서와 함께 확인: 휴일·연차휴가·근무장소·업무
+
+[판단할 조항]
+### c1 (제1조 임금, 1쪽)
+1차 의심 내용: 연장근로수당을 월급에 미리 넣어 둠
+원문:
+"""월 기본급 ... 약정연장근로수당 249,999원 ..."""
+근거 (이 조항에서 인용할 수 있는 ID):
+[L1] 근로기준법 제56조 (연장·야간 및 휴일 근로)
+사용자는 연장근로에 대하여는 통상임금의 100분의 50 이상을 가산하여 ...
+[L2] 근로기준법 제53조 (연장 근로의 제한) ...
+[G4] 포괄임금 약정의 유효 요건 ...
+관련 조항 원문:
+- c4 (제4조 법정수당 지급 및 결근공제): """..."""</pre>
+<p>20쪽 계약서라도 원문 전체를 보내지 않습니다. 목차로 맥락을 주고, 원문은 판단할 조항과 관련 조항만 보냅니다. 의심 조항이 6개를 넘으면 6개씩 나눠 동시에 보냅니다.</p>
+
+<h3>3-7. GPT 2차 → 서버</h3>
+<pre class="ai">{
+  "judgments": [ {
+      "clauseKey": "c1",
+      "verdict": "NEEDS_CHECK",                         // NEEDS_CHECK / UNCERTAIN / OK
+      "headline": "월급에 약정연장근로수당 249,999원이 들어간 것으로 보이는 임금 조항",
+      "easyExplanation": "월급 안에 연장근로수당이 미리 들어 있다는 뜻이에요 ...",
+      "whyCheck": "연장·야간·휴일근로에는 가산임금을 지급하는 기준이 있고 ...",
+      "citedIds": [ "L1", "L2" ],                       // 서버가 준 라벨만 허용
+      "relatedClauses": [ "c4" ],
+      "askCounterpart": [ "이 금액은 몇 시간분 연장근로를 전제로 한 건가요?" ] } ],
+  "needMore": [ { "clauseKey": "c9", "want": "관할 합의 관련 조문",
+                  "searchKeywords": [ "관할", "소송" ] } ],   // 근거가 부족하면
+  "questionsBeforeSigning": [ "제1조의 약정연장근로수당 금액과 산정 근거를 확인해 주실 수 있을까요?" ]
+}</pre>
+<p>needMore가 있으면 서버가 법령 DB를 다시 찾아 새 라벨(L6 등)을 붙이고, 그 조항만 한 번 더 보냅니다. 분석당 1번뿐이고, 두 번째 답의 needMore는 무시합니다.</p>
+
+<h3>3-8. 검증을 거쳐 DB에 저장되는 것</h3>
+<div class="tbl"><table>
+<tr><th>GPT 칸</th><th>검증</th><th>DB</th></tr>
+<tr><td>verdict</td><td>조문(L) 인용이 하나도 안 남으면 NEEDS_CHECK → UNCERTAIN. 규칙 조항은 규칙 결과 유지</td><td>analysis_clause.verdict</td></tr>
+<tr><td>citedIds</td><td>그 조항에 준 라벨이 아니면 지움</td><td>analysis_clause_ref.cited = true</td></tr>
+<tr><td>headline, easyExplanation, whyCheck</td><td>단정 표현 문장 지우기 → c숫자를 "제5조"로 → 칸 길이로 자르기</td><td>analysis_clause의 같은 이름 칸</td></tr>
+<tr><td>relatedClauses</td><td>보낸 조항 키만</td><td>analysis_clause_relation</td></tr>
+<tr><td>askCounterpart, questionsBeforeSigning</td><td>항목마다 같은 검사</td><td>analysis_clause.ask_counterpart, analysis.questions_json</td></tr>
+<tr><td>지운 것·바꾼 것</td><td></td><td>analysis.validation_log_json</td></tr>
+</table></div>
+
+<h3>3-9. 서버 → 앱: 결과 조회 (실제 연봉계약서 응답 일부)</h3>
+<pre class="app">{ "status": "COMPLETED", "progressStep": "DONE",
+  "result": {
+    "title": "연봉계약서",
+    "keyTerms": [
+      { "label": "계약기간", "value": "2026 년 09 월 08 일 ~ 2027 년 03 월 31 일", "state": "OK", "source": "WRITTEN" },
+      { "label": "근무장소", "value": null, "state": "MISSING", "source": null } ],
+    "counts": { "needsCheck": 6, "missing": 1, "deadline": 0, "totalClauses": 9 },
+    "priorityClauses": [ {
+        "clauseId": 3586, "verdict": "NEEDS_CHECK",
+        "title": "월급에 약정연장근로수당 249,999원이 들어간 것으로 보이는 임금 조항",
+        "description": "연장·야간·휴일근로에 대해서는 가산임금을 지급하는 기준이 제시되어 있고 ...",
+        "comparison": null,
+        "laws": [ { "lawName": "근로기준법", "article": "제56조" }, { "lawName": "근로기준법", "article": "제53조" } ],
+        "basisType": "AI_INTERPRETATION",
+        "relatedClauses": [ { "clauseId": 3589, "articleNo": "제4조", "title": "법정수당 지급 및 결근공제" } ] } ],
+    "questionsBeforeSigning": [ "제1조의 약정연장근로수당 금액과 ‘해당사항 없음’ 문구가 서로 달라 보이는데 ..." ] } }</pre>
+<p>UNCERTAIN 조항은 이 응답에서 description이 null이고 laws가 빈 배열입니다. 근거가 확인되지 않은 판단이 "법 위반"처럼 보이지 않게 하려는 것입니다.</p>
+
+<!-- ============ 4 ============ -->
+<h2 id="calc">4. 서버가 직접 계산하는 것</h2>
+<p>AI가 틀리기 쉬운 계산과 확인은 코드가 합니다. GPT는 숫자를 "읽어" 주기만 합니다.</p>
+
+<h3>최저임금 (MinimumWageRule)</h3>
+<div class="card">
+<ol class="steps">
+<li>월급 기준 금액: valueJson.basePay가 있으면 그것(기본급 + 매월 고정 수당, 연장·야간·휴일 수당 제외), 없으면 amount</li>
+<li>월 시간: 계약서에 적힌 monthlyHours(예: 209)가 있으면 그것. 없으면 계산
+<pre class="code">주 소정시간 = 하루 시간 × 주 일수                 (예: 8 × 5 = 40)
+주휴시간   = 주 소정시간이 15시간 이상이면 주 소정시간 × 8 / 40  (예: 8)
+월 시간    = (min(주 소정시간, 40) + 주휴시간) × 365 / 84       (예: 48 × 4.345 ≈ 209)</pre>
+주 20시간이면 (20 + 4) × 4.345 ≈ 104시간. 하루 시간은 아는데 주 일수를 모르면 계산하지 않고 건너뜀</li>
+<li>시급 = 월급 기준 금액 / 월 시간. 시급제면 그 금액 그대로</li>
+<li>그해 최저임금과 비교. 값은 DB(rule_param)에서 읽음: 2026-01-01부터 10,320원</li>
+<li>미달이면 그 임금 조항을 NEEDS_CHECK(basisType RULE)로 고정하고, 비교 칸(comparison)과 근거 조문(최저임금법 제6조)을 붙임</li>
+</ol>
+<pre class="code">예: 01 예시 계약서  basePay 2,700,000 / 209시간 = 시급 약 12,918원 ≥ 10,320원  → 통과
+예: 시급 10,000원   10,000 < 10,320                                        → "계약서 시급 10,000원 < 2026년 최저임금 10,320원"</pre>
+</div>
+
+<h3>빠진 필수 항목 (RequiredItems)</h3>
+<div class="card">
+<p>근로기준법 제17조와 시행령 제8조의 6개 항목: 임금, 근로시간, 휴일, 연차휴가, 근무장소, 업무. 주요 조건이 MISSING이면 빠진 항목(analysis_finding)으로 저장합니다.</p>
+<ul>
+<li>MASKED(사용자가 가림), UNREADABLE(흐림)은 "없다"고 단정할 수 없으니 빠진 항목으로 세지 않음</li>
+<li>연봉계약서처럼 임금만 정한 문서(wageOnlyDocument)면 6개를 따로 띄우지 않고 "근로계약서와 함께 확인" 1건으로 안내</li>
+</ul>
+</div>
+
+<h3>그 밖에 코드가 하는 일</h3>
+<div class="tbl"><table>
+<tr><th>계산·확인</th><th>내용</th></tr>
+<tr><td>묶음 합치기</td><td>5쪽씩 나눠 읽은 결과에서 경계 중복 조항 합치기, 키 다시 매기기</td></tr>
+<tr><td>근거 고르기</td><td>조항당 5개 제한, 같은 조문 중복 제거, L·G 번호 매기기 (아래 5번)</td></tr>
+<tr><td>인용 검증</td><td>준 라벨만, 조문 인용 없으면 UNCERTAIN, 규칙 우선</td></tr>
+<tr><td>글 거르기</td><td>단정 표현("무효", "불법", "위반됩니다", "서명해도 된다" 등), 내부 키, 칸 길이</td></tr>
+<tr><td>집계</td><td>counts.needsCheck = NEEDS_CHECK + UNCERTAIN 수, 우선순위: 규칙 → AI 확인 필요 → 근거 못 찾음, 같으면 쪽·조항 순</td></tr>
+<tr><td>일정 후보</td><td>날짜 이름이 시작·개시·입사면 계약 시작, 종료·만료면 계약 종료, 입주·인도면 입주. 애매한 날짜는 만들지 않음</td></tr>
+<tr><td>완료 조건</td><td>판정 중(JUDGING) 조항이 0개이고 아직 ANALYZING일 때만 COMPLETED (DB 조건부 UPDATE)</td></tr>
+<tr><td>알림 문구</td><td>"{계약서 이름} · 확인 필요 N", 0이면 "{계약서 이름} · 확인할 조항 없음"</td></tr>
+</table></div>
+
+<!-- ============ 5 ============ -->
+<h2 id="law">5. 법령 DB는 언제, 어떻게 쓰이나</h2>
+
+<div class="diagram">
+<svg viewBox="0 0 960 300" role="img" aria-label="법령 DB 채우기와 분석 중 조회">
+  <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+  <text x="20" y="28" font-weight="700" font-size="14">A. 미리 채우기 (한 번, 사람이 실행)</text>
+  <rect class="b-ext" x="20" y="44" width="180" height="70" rx="10"/><text x="110" y="74" text-anchor="middle" font-weight="600" font-size="13">법제처 Open API</text><text x="110" y="94" text-anchor="middle" class="s" font-size="11">lawSearch.do · lawService.do</text>
+  <rect class="b-code" x="290" y="44" width="200" height="70" rx="10"/><text x="390" y="74" text-anchor="middle" font-weight="600" font-size="13">LawLoader</text><text x="390" y="94" text-anchor="middle" class="s" font-size="11">항 단위로 나눠 저장 · 캐시</text>
+  <rect class="b-db" x="580" y="44" width="360" height="70" rx="10"/><text x="760" y="70" text-anchor="middle" font-weight="600" font-size="13">법령 DB</text><text x="760" y="92" text-anchor="middle" class="s" font-size="11">law 7 · law_article 2,570 (검색용 search_vector 포함)</text><text x="760" y="108" text-anchor="middle" class="s" font-size="11">+ 사람이 넣는 issue_tag 21 · issue_tag_article 110 · rule_param</text>
+  <path class="ln-ext" d="M200 79 H288" marker-end="url(#ar3)"/>
+  <path class="ln-db" d="M490 79 H578" marker-end="url(#ar3)"/>
+
+  <text x="20" y="160" font-weight="700" font-size="14">B. 분석 중 (매 분석, 외부 호출 없이 우리 DB만)</text>
+  <g font-size="12" text-anchor="middle">
+    <rect class="b-db" x="20" y="176" width="210" height="96" rx="10"/><text x="125" y="200" font-weight="600">① 꼬리표 매핑</text><text x="125" y="220" class="s">1차가 고른 issueTag에</text><text x="125" y="236" class="s">사람이 미리 연결한 조문</text><text x="125" y="256" class="s">found_by = TAG_MAP</text>
+    <rect class="b-db" x="255" y="176" width="210" height="96" rx="10"/><text x="360" y="200" font-weight="600">② AI 힌트 확인</text><text x="360" y="220" class="s">lawHints "근로기준법 제56조"가</text><text x="360" y="236" class="s">DB에 실제로 있으면 채택</text><text x="360" y="256" class="s">found_by = AI_HINT</text>
+    <rect class="b-db" x="490" y="176" width="210" height="96" rx="10"/><text x="595" y="200" font-weight="600">③ 전문 검색</text><text x="595" y="220" class="s">searchKeywords로</text><text x="595" y="236" class="s">문서 종류 관련 법령 안에서</text><text x="595" y="256" class="s">found_by = SEARCH</text>
+    <rect class="b-db" x="725" y="176" width="215" height="96" rx="10"/><text x="832" y="200" font-weight="600">④ 해석 메모</text><text x="832" y="220" class="s">꼬리표의 guidance 1개</text><text x="832" y="236" class="s">(G 라벨, 화면에는 안 보임)</text><text x="832" y="256" class="s">판단 참고용</text>
+  </g>
+  <path class="ln" d="M230 224 H253" marker-end="url(#ar3)"/>
+  <path class="ln" d="M465 224 H488" marker-end="url(#ar3)"/>
+  <path class="ln" d="M700 224 H723" marker-end="url(#ar3)"/>
+  <text x="480" y="292" text-anchor="middle" class="s" font-size="12">칸(조항당 5개)이 차면 다음 단계는 건너뜀 · 같은 조문은 한 번만</text>
+</svg>
+</div>
+
+<h3>A. 법령 DB를 채우는 때: 분석과 별개, 한 번</h3>
+<div class="card">
+<ul>
+<li>서버를 적재 모드로 한 번 실행할 때만 법제처 API를 부릅니다: <code style="font-size:13px">./gradlew bootRun --args='--docai.law.load=true'</code>. 평소 서버 기동이나 분석 중에는 법제처 API를 부르지 않습니다.</li>
+<li>현행법령 목록(lawSearch.do)으로 법령을 찾고, 본문(lawService.do)을 받아 조·항 단위로 나눠 law_article에 저장합니다. 2026-11-17에 근로기준법, 최저임금법, 근로자퇴직급여 보장법, 주택임대차보호법, 민법 등 7개 법령 2,570행을 넣었습니다.</li>
+<li>호출 사이에 간격을 두고, 오류면 1회만 다시 시도합니다. 받은 응답은 파일로 캐시해 두어 다시 적재할 때 API를 또 부르지 않습니다. 인증값(OC)은 로그와 에러 글에서 가립니다.</li>
+<li>꼬리표 21개와 조문 연결 110행, 최저임금액(rule_param)은 사람이 확인해서 넣습니다.</li>
+</ul>
+</div>
+
+<h3>B. 분석 중 조회: 근거 찾기 단계에서, 의심 조항마다</h3>
+<div class="card">
+<ul>
+<li>의심 표시(issueFound)된 조항만 찾습니다. 의심 없는 조항은 법령을 찾지 않습니다.</li>
+<li>기준일은 계약일(law_base_date)입니다. 그날 시행 중인 조문을 고르고, 현행 조문밖에 없으면 내용 앞에 "[현행 조문으로 대신함: 계약일 당시 조문과 다를 수 있음]"을 붙입니다.</li>
+<li>전문 검색은 PostgreSQL 전문 검색입니다. 검색어를 글자·숫자만 남겨 질의로 만들고, 점수(ts_rank)가 기준 이상인 조문을 점수 순으로 가져옵니다.
+<pre class="db">SELECT law_article_id, ts_rank(search_vector, to_tsquery('simple', '연장근로 | 가산임금')) AS score
+FROM law_article
+WHERE search_vector @@ to_tsquery('simple', '연장근로 | 가산임금')
+  AND law_id IN (문서 종류의 관련 법령)  AND 기준일에 시행 중
+  AND score >= 최소 점수
+ORDER BY score DESC  LIMIT 5</pre></li>
+<li>조항당 최대 5개. 숫자 규칙이 이미 붙인 근거(RULE)도 칸을 차지합니다. 해석 메모가 있으면 1칸을 남겨 둡니다.</li>
+<li>2차의 needMore가 오면 같은 방법(②③)으로 한 번 더 찾아 조항당 최대 3개를 새 라벨로 붙입니다.</li>
+<li>찾은 조문은 내용을 복사(ref_text)해 저장하므로, 결과·조항 상세 조회 때는 법령을 다시 찾지 않습니다.</li>
+</ul>
+</div>
+
+<div class="warn">법령 DB에 없는 법령이나 조문은 근거로 쓸 수 없습니다. GPT가 그럴듯한 조문을 지어내도 ②에서 DB에 없으면 버리고, 2차가 준 적 없는 라벨을 인용하면 검증에서 지웁니다. 그래서 화면에 나오는 법령은 모두 우리 DB에 실제로 있는 조문입니다.</div>
+
+<!-- ============ 6 ============ -->
+<h2 id="time">6. 시간과 비용 (실제 기록, ai_call_log)</h2>
+<div class="tbl"><table>
+<tr><th>호출</th><th>입력 토큰</th><th>출력 토큰</th><th>시간</th><th>비용</th></tr>
+<tr><td>1차 EXTRACT (사진 2장)</td><td>약 8,500 (캐시 7,900)</td><td>약 3,400</td><td>약 29초</td><td>약 150원</td></tr>
+<tr><td>2차 JUDGE</td><td>약 5,800~6,500</td><td>약 2,800~3,100</td><td>약 37~41초</td><td>약 170원</td></tr>
+<tr><td>추가 조회 JUDGE_MORE</td><td>약 1,500</td><td>약 600~900</td><td>약 11~14초</td><td>약 40원</td></tr>
+<tr><td>합계 (근로·연봉계약서)</td><td></td><td></td><td>약 73~85초</td><td>약 300~400원</td></tr>
+<tr><td>의심 조항 없는 계약서</td><td>1차만</td><td></td><td>약 21초</td><td>약 170원</td></tr>
+</table></div>
+<p>비용은 gpt-5.5 가격(입력 100만 토큰당 $5, 캐시 입력 $0.5, 출력 $30)과 1달러 1,450원으로 계산했습니다. 출력 토큰에는 GPT가 생각하는 데 쓴 토큰도 들어가서 비용의 대부분을 차지합니다. 정확한 금액은 OpenAI 대시보드 Usage가 기준입니다.</p>
+
+
+<h2 id="video">시연 영상</h2>
+<p>계약서 사진 촬영 → AI 분석 결과 확인 → 챗봇으로 용어 질문까지, 실제 백엔드와 AI로 동작하는 모습입니다.</p>
+<section class="card" aria-labelledby="employment-video-title">
+  <h3 id="employment-video-title">근로계약서 시연</h3>
+  <p>촬영부터 실제 AI 분석과 챗봇 질문까지 이어지는 영상입니다.</p>
+  <video controls playsinline preload="metadata" aria-label="근로계약서 실제 분석 시연 영상">
+    <source src="/videos/employment-demo.mp4" type="video/mp4">
+    영상을 재생할 수 없으면 <a href="/videos/employment-demo.mp4">근로계약서 영상 파일</a>을 열어 주세요.
+  </video>
+  <p><a class="site-try" href="/app/analyses/1" target="_top">같은 근로계약서 예시 보기 →</a></p>
+</section>
+<section class="card" aria-labelledby="lease-video-title">
+  <h3 id="lease-video-title">임대차계약서 시연</h3>
+  <p>표준임대차계약서 6쪽의 실제 분석 결과를 예시에서 확인할 수 있습니다. 영상은 전달받는 대로 추가합니다.</p>
+  <a class="site-try" href="/app/analyses/9" target="_top">임대차계약서 예시 먼저 보기 →</a>
+</section>
+
+<div class="try-card">
+  <p>영상 속 화면을 직접 눌러 보세요<small>시연 모드라 분석 결과는 예시 데이터예요. 실제 분석 결과는 위 영상과 파이프라인에서 확인할 수 있어요.</small></p>
+  <a class="site-try" href="/app" target="_top">직접 써 보기 →</a>
+</div>
+
+</main>
+</body>
+</html>
