@@ -76,7 +76,9 @@ export function MyContractsView({ contracts }: { contracts: ContractSummary[] })
             <span className="row" style={{ gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
               {contract.needsCheckCount > 0 && <Tag color="red" icon="warn">확인 필요 {contract.needsCheckCount}</Tag>}
               {(contract.missingItemCount ?? 0) > 0 && <Tag color="amb">빠진 항목 {contract.missingItemCount}</Tag>}
-              {contract.needsCheckCount === 0 && !contract.missingItemCount && <Tag>짚은 내용 없음</Tag>}
+              {contract.reviewState === 'insufficient' ? <Tag color="amb">정보 부족 · 확인 필요</Tag>
+                : contract.reviewState === 'guide' ? <Tag>공통 확인 예시</Tag>
+                : contract.needsCheckCount === 0 && !contract.missingItemCount && <Tag>짚은 내용 없음</Tag>}
               <Tag>{contract.scheduleCount ? `일정 ${contract.scheduleCount}` : '일정 없음'}</Tag>
             </span>
           </span>

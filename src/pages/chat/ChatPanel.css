@@ -1,3 +1,6 @@
+.chat-dialog{height:100%;min-height:0;display:flex;flex-direction:column}
+.chat-dialog .msgs{min-height:0;flex:1}
+.chat-demo-note{margin:0 16px 8px;font-size:12px;flex:none}
 .chat-thinking{display:flex;align-items:center;gap:12px;color:var(--muted)}
 .chat-thinking-dots{display:inline-flex;gap:4px;align-items:center;height:18px}
 .chat-thinking-dots i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:chat-thinking-pulse 1.2s ease-in-out infinite}

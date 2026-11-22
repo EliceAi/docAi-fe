@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { getSchedules, type Schedule } from '../../api/schedules'
 import { mockScheduleToday } from '../../api/mocks/schedules'
@@ -22,12 +22,13 @@ export function SchedulesPage() {
   return <SchedulesView schedules={data} latestFirst />
 }
 
-type SchedulesViewProps = { schedules: Schedule[]; initialView?: 'list' | 'calendar'; showSaved?: boolean; latestFirst?: boolean }
+const scheduleScrollPositions = new Map<string, number>()
+type SchedulesViewProps = { schedules: Schedule[]; initialView?: 'list' | 'calendar'; showSaved?: boolean; latestFirst?: boolean; backgroundPath?: string }
 
-export function SchedulesView({ schedules, initialView, showSaved = false, latestFirst = false }: SchedulesViewProps) {
+export function SchedulesView({ schedules, initialView, showSaved = false, latestFirst = false, backgroundPath }: SchedulesViewProps) {
   const [routeParams, setRouteParams] = useSearchParams()
   const location = useLocation()
-  const [previewParams, setPreviewParams] = useState(() => new URLSearchParams())
+  const [previewParams, setPreviewParams] = useState(() => new URLSearchParams(backgroundPath?.split('?')[1]))
   const params = location.pathname === '/schedules' ? routeParams : previewParams
   const view = params.has('view') ? (params.get('view') === 'calendar' ? 'calendar' : 'list') : initialView ?? 'list'
   function setParams(next: URLSearchParams) {
@@ -41,6 +42,12 @@ export function SchedulesView({ schedules, initialView, showSaved = false, lates
   const requestedMonth = params.get('month')
   const month = requestedMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth) ? requestedMonth : selected.slice(0, 7)
   const [savedVisible, setSavedVisible] = useState(showSaved || location.state?.schedulesSaved === true || typeof location.state?.schedulesSaved === 'number')
+  const scrollKey = backgroundPath ?? location.pathname + location.search
+  useLayoutEffect(() => {
+    if (!latestFirst) return
+    const scroller = document.querySelector<HTMLElement>('.phone-scroll')
+    if (scroller) scroller.scrollTop = location.state?.schedulesSaved ? 0 : scheduleScrollPositions.get(scrollKey) ?? 0
+  }, [latestFirst, scrollKey, location.state?.schedulesSaved])
   // S13에서 저장한 일정 수. 보드처럼 개수를 모를 때는 와이어프레임 예시대로 3개로 보여 준다
   const savedCount: number = typeof location.state?.schedulesSaved === 'number' ? location.state.schedulesSaved : 3
 
@@ -145,7 +152,8 @@ export function ScheduleEntry({ schedule, showFullDate = false }: { schedule: Sc
   const location = useLocation()
   const date = scheduleDate(schedule.date)
   const color = schedule.color ?? (schedule.daysLeft <= 14 ? 'red' : schedule.daysLeft <= 21 ? 'blu' : 'gry')
-  return <Link className="er" to={`/schedules/${schedule.scheduleId}`} state={{ scheduleReturn: location.pathname === '/schedules' ? location.pathname + location.search : '/schedules' }}>
+  return <Link className="er" to={`/schedules/${schedule.scheduleId}`} state={{ scheduleReturn: location.pathname === '/schedules' ? location.pathname + location.search : '/schedules' }}
+    onClick={event => scheduleScrollPositions.set(location.pathname + location.search, event.currentTarget.closest('.phone-scroll')?.scrollTop ?? 0)}>
     <span className="ed"><b>{date.getDate()}</b><small>{weekdays[date.getDay()]}</small></span>
     <span style={{ flex: 1, minWidth: 0 }}><b>{schedule.title}</b>{' '}<Tag color={color}>{dday(schedule.daysLeft)}</Tag><br />
       <span className="mut">{showFullDate && `${schedule.date} · `}{schedule.contractTitle}{schedule.note && ` · ${schedule.note}`}</span>

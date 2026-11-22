@@ -17,5 +17,5 @@ export function dday(daysLeft: number) {
 export function activateScheduleButton(event: KeyboardEvent<HTMLElement>) {
   if (event.key !== 'Enter' && event.key !== ' ') return
   const target = event.target as HTMLElement
-  if (target.matches('[role="button"]')) { event.preventDefault(); target.click() }
+  if (['button', 'checkbox', 'radio'].includes(target.getAttribute('role') ?? '')) { event.preventDefault(); target.click() }
 }
