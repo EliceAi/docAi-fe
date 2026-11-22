@@ -28,12 +28,12 @@ export function ScheduleDetailPage() {
       </Screen>
     </div>
   )
-  return <ScheduleDetailView key={scheduleId} schedule={data.schedule} schedules={data.schedules} returnTo={returnTo} />
+  return <ScheduleDetailView key={scheduleId} schedule={data.schedule} schedules={data.schedules} returnTo={returnTo} latestFirst />
 }
 
-type DetailProps = { schedule: Schedule; schedules: Schedule[]; returnTo?: string; showSaved?: boolean }
+type DetailProps = { schedule: Schedule; schedules: Schedule[]; returnTo?: string; showSaved?: boolean; latestFirst?: boolean }
 
-export function ScheduleDetailView({ schedule, schedules, returnTo = '/schedules', showSaved = false }: DetailProps) {
+export function ScheduleDetailView({ schedule, schedules, returnTo = '/schedules', showSaved = false, latestFirst = false }: DetailProps) {
   const navigate = useNavigate()
   const [current, setCurrent] = useState(schedule)
   const [mode, setMode] = useState<'detail' | 'edit' | 'delete'>('detail')
@@ -130,6 +130,6 @@ export function ScheduleDetailView({ schedule, schedules, returnTo = '/schedules
   </div>
 
   return <div className="schedule-screen" onKeyDown={handleModalKey}>
-    <Layered base={<div inert style={{ height: '100%' }}><SchedulesView schedules={baseSchedules} showSaved={showSaved} /></div>} layers={action ? [sheet, action] : [sheet]} />
+    <Layered base={<div inert style={{ height: '100%' }}><SchedulesView schedules={baseSchedules} showSaved={showSaved} latestFirst={latestFirst} backgroundPath={returnTo} /></div>} layers={action ? [sheet, action] : [sheet]} />
   </div>
 }

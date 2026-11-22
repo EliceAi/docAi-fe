@@ -176,7 +176,7 @@ export function ScheduleNewView({ data, initialChosen = {}, initialFailed = fals
                   <span style={{ flex: 1 }}>
                     <b>{candidate.title}</b><br />
                     {editingIds.includes(candidate.candidateId)
-                      ? <input type="date" aria-label={`${candidate.title} 날짜`} value={typedDates[candidate.candidateId] ?? ''} onChange={event => typeDate(candidate.candidateId, event.target.value)} />
+                      ? <input type="date" aria-label={`${candidate.title} 날짜`} value={typedDates[candidate.candidateId] ?? isoDate(candidate.date ?? '')} onChange={event => typeDate(candidate.candidateId, event.target.value)} />
                       : <span className="dt2">{showDate(candidate)}</span>} {sourceTag(typedDates[candidate.candidateId] ? 'typed' : candidate.source)}<br />
                     <span className="mut">{candidate.where}</span>
                   </span>

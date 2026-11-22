@@ -58,6 +58,8 @@ export function MyContractDetailView({ contract, demo = false }: { contract: Con
           {mockDocumentTypes.find(type => type.code === contract.documentTypeCode)?.name ?? '계약서'}{contract.reviewLabel && ` · ${contract.reviewLabel}`}
         </div>
       </div>
+      {contract.reviewState === 'insufficient' && <div className="warnb"><Icon name="info" size={16} />원문과 주요 조건 정보가 부족한 예시예요. 검토 결과가 없다는 뜻이 아니에요.</div>}
+      {contract.reviewState === 'guide' && <div className="note">개별 문서의 AI 분석 결과가 아닌 공통 확인 항목 예시예요.</div>}
       {contract.keyTerms.length > 0 && (
         <TermsContainer className="card">
           {demo && <summary className="h2" style={{ cursor: 'pointer' }}>주요 조건 {contract.keyTerms.length}개</summary>}
@@ -85,7 +87,7 @@ export function MyContractDetailView({ contract, demo = false }: { contract: Con
           </Link>
         ))}
       </div>
-      <Button to={`/analyses/${contract.analysisId}`} kind="l">분석 결과 전체 보기</Button>
+      <Button to={`/analyses/${contract.analysisId}`} kind="l">{contract.reviewState === 'guide' ? '공통 확인 항목 보기' : '분석 결과 전체 보기'}</Button>
       {demo && [2, 4].includes(contract.contractId) && <Button to="/comparisons/new" kind="l">이전본·수정본 비교 예시 보기</Button>}
       <div className="note"><Icon name="info" size={14} />이 계약서로 질문하려면 위의 AI에게 질문을 눌러요</div>
     </Screen>

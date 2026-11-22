@@ -34,6 +34,9 @@ describe('buildNewSchedules', () => {
   it('잘못된 날짜로 고쳐 쓴 일정은 저장하지 않는다', () => {
     expect(buildNewSchedules([start], { ...empty, checkedIds: [1], typedDates: { 1: '2026.02.30' } })).toEqual([])
   })
+  it('직접 비운 날짜는 원래 날짜로 되돌려 저장하지 않는다', () => {
+    expect(buildNewSchedules([start], { ...empty, checkedIds: [1], typedDates: { 1: '' } })).toEqual([])
+  })
 })
 
 describe('conflictGroups', () => {

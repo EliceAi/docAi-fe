@@ -1,6 +1,6 @@
 import type { ChatAnswer, ChatQuestion } from '../chats'
 import { SUGGESTED_QUESTIONS } from '../chatSuggestions'
-import { getAnalysis, getClause } from '../analyses'
+import { getAnalysis, getClause, type KeyTerm } from '../analyses'
 import { getMyContract } from '../contracts'
 import { getComparison } from '../comparisons'
 import { getScheduleCandidates, getScheduleChanges, getSchedules } from '../schedules'
@@ -10,6 +10,12 @@ const examples = [
   { label: '근로계약서 예시 보기', to: '/analyses/1' },
   { label: '임대차계약서 예시 보기', to: '/analyses/9' },
 ]
+
+function describeKeyTerm(term: KeyTerm) {
+  if (term.state === 'miss') return '적혀 있지 않아요. 상대방에게 확인해 주세요.'
+  if (term.state === 'unk' || term.value === null) return '읽지 못한 정보예요. 원문을 확인해 주세요.'
+  return term.value
+}
 
 const guidance: Record<string, string> = {
   '어떤 도움을 받을 수 있어?': '계약서의 주요 조건과 확인할 조항을 읽고, 날짜를 골라 내 일정에 저장할 수 있어요. 시연에서는 준비된 예시로 직접 확인해 보세요.',
@@ -55,6 +61,15 @@ export async function answerDemoQuestion(question: ChatQuestion): Promise<DemoAn
     return reply(guidance[text], actions, text === '계약서에서 특약이 무슨 뜻이야?' ? ['법률 용어 안내'] : ['앱 사용법', '현재 화면'])
   }
 
+  const moneyQuestion = /^(보증금|월세|관리비|임금|월급|연봉)(?:은|는|이|가)?\s*얼마(?:야|예요|인가요)?[?.!\s]*$/.exec(text)
+  if (moneyQuestion && (question.analysisId || question.contractId)) {
+    const contract = question.contractId ? await getMyContract(question.contractId) : null
+    const analysis = await getAnalysis(question.analysisId ?? contract!.analysisId)
+    const label = moneyQuestion[1] === '월급' ? '임금' : moneyQuestion[1]
+    const term = analysis.keyTerms.find(term => term.label === label)
+    return reply(`**${analysis.documentTitle}**의 ${label}: ${term ? describeKeyTerm(term) : '이 예시에서 해당 금액을 확인할 수 없어요.'}`,
+      [{ label: '분석 결과 보기', to: `/analyses/${analysis.analysisId}` }])
+  }
   if (!followUps.includes(text)) return {
     status: 'NOT_ENOUGH',
     answer: '이 시연은 준비된 질문과 예시 계약서로 답변 과정을 보여 드려요. 자유 질문에 대한 새 AI 답변은 생성하지 않아요. 아래 추천 질문을 선택해 주세요.',
@@ -96,8 +111,15 @@ export async function answerDemoQuestion(question: ChatQuestion): Promise<DemoAn
     return reply(text === '상대방에게 무엇을 확인하면 돼?' ? clause.question || '해당 조항의 적용 범위와 조건을 상대방에게 확인해 주세요.'
       : text === '이 조항이 나에게 어떤 영향을 줘?' ? clause.checkReason || clause.easyExplanation : clause.easyExplanation)
   }
-  if (text === '중요한 조건을 쉽게 정리해 줘.') return reply(`**${analysis.documentTitle}**\n${analysis.keyTerms.map(term => `${term.label}: ${term.value ?? '확인 필요'}`).join('\n')}`)
-  if (text === '아직 확인되지 않은 정보가 있어?') return reply(`${analysis.missingItems.length ? analysis.missingItems.map(item => `${item.title}: ${item.explanation}`).join('\n') : '이 예시에서 별도로 표시된 빠진 항목은 없어요.'}\n${analysis.unknowns?.explanation ?? '상대방에게 물어볼 질문과 조항 원문도 함께 확인해 주세요.'}`)
+  if (text === '중요한 조건을 쉽게 정리해 줘.') return reply(`**${analysis.documentTitle}**\n${analysis.keyTerms.map(term => `${term.label}: ${describeKeyTerm(term)}`).join('\n')}`)
+  if (text === '아직 확인되지 않은 정보가 있어?') {
+    if (!['EMPLOYMENT', 'LEASE'].includes(analysis.documentTypeCode)) return reply('이 화면은 공통 확인 항목 예시예요. 개별 계약서를 분석한 결과가 아니므로 빠진 정보를 판단할 수 없어요.')
+    const missing = new Map(analysis.missingItems.map(item => [item.title, `${item.title}: ${item.explanation}`]))
+    for (const term of analysis.keyTerms) {
+      if (term.state === 'miss' || term.state === 'unk' || term.value === null) missing.set(term.label, `${term.label}: ${describeKeyTerm(term)}`)
+    }
+    return reply(`${missing.size ? [...missing.values()].join('\n') : analysis.unknowns ? '원문에서 확인할 정보가 있어요.' : '이 예시에서 별도로 표시된 빠진 항목은 없어요.'}\n${analysis.unknowns?.explanation ?? '상대방에게 물어볼 질문과 조항 원문도 함께 확인해 주세요.'}`)
+  }
   return reply(`**${analysis.documentTitle}**에서 확인할 내용이에요.\n${analysis.findings.map(finding => `${finding.title}\n${finding.summary}`).join('\n') || analysis.unknowns?.explanation || '이 예시에는 별도로 짚은 조항이 없어요.'}`,
     analysis.findings.length ? [{ label: '첫 조항 자세히 보기', to: `/analyses/${analysis.analysisId}/clauses/${analysis.findings[0].clauseId}` }] : [])
 }
